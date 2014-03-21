@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Numeric.QuadraticIrrational
-  ( QI, qi, qi', unQI, unQI'
+  ( QI, qi, qi', runQI, runQI', unQI, unQI'
   , qiToFloat
   , qiSimplify
   , qiAddR, qiSubR, qiMulR, qiDivR
@@ -44,35 +44,41 @@ qi' :: Integer  -- ^ a
 qi' a b (nonNegative "qi'" -> c) (nonZero "qi'" -> d) = qi (a % d) (b % d) c
 
 -- | Given @n@ and @f@ such that @n = a + b √c@, run @f a b c@.
-unQI :: QI -> (Rational -> Rational -> Integer -> a) -> a
-unQI (QI a b c) f = f a b c
+runQI :: QI -> (Rational -> Rational -> Integer -> a) -> a
+runQI (QI a b c) f = f a b c
 
 -- | Given @n@ and @f@ such that @n = (a + b √c)/d@, run @f a b c d@.
-unQI' :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
-unQI' n f = unQI n $ \a b c ->
-  -- aN/aD + bN/bD = (aN bD + bN aD) / (aD bD)
-  let a' = aN * bD
-      b' = bN * aD
-      d' = aD * bD
-      (aN, aD) = (numerator a, denominator a)
-      (bN, bD) = (numerator b, denominator b)
-  in  f a' b' c d'
+runQI' :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
+runQI' (unQI -> ~(a,b,c)) f = f a' b' c d'
+  where
+    -- aN/aD + bN/bD = (aN bD + bN aD) / (aD bD)
+    a' = aN * bD
+    b' = bN * aD
+    d' = aD * bD
+    (aN, aD) = (numerator a, denominator a)
+    (bN, bD) = (numerator b, denominator b)
+
+-- | Given @n@ such that @n = a + b √c@, return @(a, b, c)@.
+unQI :: QI -> (Rational, Rational, Integer)
+unQI n = runQI n (,,)
+
+-- | Given @n@ such that @n = (a + b √c)/d@, return @(a, b, c, d)@.
+unQI' :: QI -> (Integer, Integer, Integer, Integer)
+unQI' n = runQI' n (,,,)
 
 qiToFloat :: Floating a => QI -> a
-qiToFloat n = unQI n $ \a b c ->
+qiToFloat (unQI -> ~(a,b,c)) =
   fromRational a + fromRational b * sqrt (fromInteger c)
 
 -- | Change a 'QI' to a potentially simpler form. Will factorize the number
 -- inside the square root internally.
 qiSimplify :: QI -> QI
-qiSimplify n = unQI n go
+qiSimplify (unQI -> ~(a,b,c))
+  | c  == 0   = qi a 0 0
+  | c' == 1   = qi (a + b') 0 0
+  | otherwise = qi a b' c'
   where
-    go a b c
-      | c  == 0   = qi a 0 0
-      | c' == 1   = qi (a + b') 0 0
-      | otherwise = qi a b' c'
-      where
-        ~(b', c') = first (b *) (separateSquareFactors c)
+    ~(b', c') = first (b *) (separateSquareFactors c)
 
 -- | Given @c@ such that @n = √c@, return @(b, c)@ such that @n = b √c@.
 separateSquareFactors :: Integer -> (Rational, Integer)
@@ -85,13 +91,13 @@ separateSquareFactors = first fromInteger . foldl' go (1,1) . factorise
       | otherwise = (a*fac^((pow-1) `div` 2), b*fac)
 
 qiAddR :: QI -> Rational -> QI
-qiAddR n x = unQI n $ \a b c -> qi (a+x) b c
+qiAddR (unQI -> ~(a,b,c)) x = qi (a+x) b c
 
 qiSubR :: QI -> Rational -> QI
 qiSubR n x = qiAddR n (negate x)
 
 qiMulR :: QI -> Rational -> QI
-qiMulR n x = unQI n $ \a b c -> qi (a*x) (b*x) c
+qiMulR (unQI -> ~(a,b,c)) x = qi (a*x) (b*x) c
 
 qiDivR :: QI -> Rational -> QI
 qiDivR n (nonZero "qiDiv" -> x) = qiMulR n (recip x)
@@ -100,26 +106,24 @@ qiNegate :: QI -> QI
 qiNegate n = qiMulR n (-1)
 
 qiRecip :: QI -> Maybe QI
-qiRecip n = unQI' n $ \a b c d ->
+qiRecip (unQI' -> ~(a,b,c,d)) =
   -- 1/((a + b √c)/d)                       =
   -- d/(a + b √c)                           =
   -- d (a − b √c) / ((a + b √c) (a − b √c)) =
   -- d (a − b √c) / (a² − b² c)             =
   -- a d − b d √c / (a² − b² c)
-  let denom = (a*a - b*b * toInteger c)
-  in  qi' (a * d) (negate (b * d)) c denom <$ guard (denom /= 0)
+  qi' (a * d) (negate (b * d)) c denom <$ guard (denom /= 0)
+  where denom = (a*a - b*b * toInteger c)
 
 -- | Add two 'QI's if the square root terms are the same or zeros.
 qiAdd :: QI -> QI -> Maybe QI
-qiAdd n n' = unQI n $ \a b c -> unQI n' $ \a' b' c' -> go a b c a' b' c'
-  where
-    -- a + b √c + a' + b' √c =
-    -- (a + a') + (b + b') √c
-    go a b c a' b' c'
-      | c  == 0   = Just (qi (a + a') b'       c')
-      | c' == 0   = Just (qi (a + a') b        c)
-      | c  == c'  = Just (qi (a + a') (b + b') c)
-      | otherwise = Nothing
+qiAdd (unQI -> ~(a,b,c)) (unQI -> ~(a',b',c'))
+  | c  == 0   = Just (qi (a + a') b'       c')
+  | c' == 0   = Just (qi (a + a') b        c)
+  | c  == c'  = Just (qi (a + a') (b + b') c)
+                -- a + b √c + a' + b' √c =
+                -- (a + a') + (b + b') √c
+  | otherwise = Nothing
 
 -- | Subtract two 'QI's if the square root terms are the same or zeros.
 qiSub :: QI -> QI -> Maybe QI
@@ -127,16 +131,14 @@ qiSub n n' = qiAdd n (qiNegate n')
 
 -- | Multiply two 'QI's if the square root terms are the same or zeros.
 qiMul :: QI -> QI -> Maybe QI
-qiMul n n' = unQI n $ \a b c -> unQI n' $ \a' b' c' -> go a b c a' b' c'
-  where
-    -- (a + b √c) (a' + b' √c)           =
-    -- a a' + a b' √c + a' b √c + b b' c =
-    -- (a a' + b b' c) + (a b' + a' b) √c
-    go a b c a' b' c'
-      | c  == 0   = Just (qiMulR n' a)
-      | c' == 0   = Just (qiMulR n  a')
-      | c  == c'  = Just (qi (a*a' + b*b'*fromInteger c) (a*b' + a'*b) c)
-      | otherwise = Nothing
+qiMul n@(unQI -> ~(a,b,c)) n'@(unQI -> ~(a',b',c'))
+  | c  == 0   = Just (qiMulR n' a)
+  | c' == 0   = Just (qiMulR n  a')
+  | c  == c'  = Just (qi (a*a' + b*b'*fromInteger c) (a*b' + a'*b) c)
+                -- (a + b √c) (a' + b' √c)           =
+                -- a a' + a b' √c + a' b √c + b b' c =
+                -- (a a' + b b' c) + (a b' + a' b) √c
+  | otherwise = Nothing
 
 -- | Divide two 'QI's if the square root terms are the same or zeros.
 qiDiv :: QI -> QI -> Maybe QI
