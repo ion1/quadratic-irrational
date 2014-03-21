@@ -3,7 +3,7 @@
 module Numeric.QuadraticIrrational
   ( QI, qi, qi', unQI, unQI'
   , qiToFloat
-  , qiReduce
+  , qiSimplify
   , qiAdd, qiSub, qiMul, qiDiv, qiRecip, qiPow
   ) where
 
@@ -60,10 +60,10 @@ qiToFloat :: Floating a => QI -> a
 qiToFloat n = unQI n $ \a b c ->
   fromRational a + fromRational b * sqrt (fromInteger c)
 
--- | Reduce a 'QI' to a potentially simpler form. Will factorize the number
+-- | Change a 'QI' to a potentially simpler form. Will factorize the number
 -- inside the square root internally.
-qiReduce :: QI -> QI
-qiReduce n = unQI n go
+qiSimplify :: QI -> QI
+qiSimplify n = unQI n go
   where
     go a b c
       | c  == 0   = qi a 0 0

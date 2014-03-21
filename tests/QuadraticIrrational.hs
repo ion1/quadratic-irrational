@@ -53,8 +53,8 @@ tests =
       ]
 
     , testGroup "Numerical operations"
-      [ testProperty "qiReduce" $ \n ->
-          approxEq' (unQI n approxQI) (unQI (qiReduce n) approxQI)
+      [ testProperty "qiSimplify" $ \n ->
+          approxEq' (unQI n approxQI) (unQI (qiSimplify n) approxQI)
 
       , testProperty "qiAdd" $ \n x ->
           approxEq' (unQI (qiAdd n x) approxQI)
