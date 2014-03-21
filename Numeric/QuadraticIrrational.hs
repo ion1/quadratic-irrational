@@ -160,7 +160,7 @@ qiPow num (nonNegative "qiPow" -> pow) = go num pow
       | even p    = go' (sudoQIMul n n) (p     `div` 2) n'
       | otherwise = go' (sudoQIMul n n) ((p-1) `div` 2) (sudoQIMul n n')
 
-    -- Multiplying a QI with itself or by 1 will always succeed.
+    -- Multiplying a QI with its own power will always succeed.
     sudoQIMul n n' = case qiMul n n' of ~(Just m) -> m
 
 nonNegative :: (Num a, Ord a, Show a) => String -> a -> a
