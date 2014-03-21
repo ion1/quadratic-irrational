@@ -4,7 +4,7 @@ module Numeric.QuadraticIrrational
   ( QI, qi, qi', unQI, unQI'
   , qiToFloat
   , qiSimplify
-  , qiAdd, qiSub, qiMul, qiDiv, qiRecip, qiPow
+  , qiAddR, qiSubR, qiMulR, qiDivR, qiRecip, qiPow
   ) where
 
 -- TODO http://hackage.haskell.org/package/continued-fractions
@@ -82,17 +82,17 @@ separateSquareFactors = first fromInteger . foldl' go (1,1) . factorise
       | even pow  = (a*fac^(pow     `div` 2), b)
       | otherwise = (a*fac^((pow-1) `div` 2), b*fac)
 
-qiAdd :: QI -> Rational -> QI
-qiAdd n x = unQI n $ \a b c -> qi (a+x) b c
+qiAddR :: QI -> Rational -> QI
+qiAddR n x = unQI n $ \a b c -> qi (a+x) b c
 
-qiSub :: QI -> Rational -> QI
-qiSub n x = qiAdd n (negate x)
+qiSubR :: QI -> Rational -> QI
+qiSubR n x = qiAddR n (negate x)
 
-qiMul :: QI -> Rational -> QI
-qiMul n x = unQI n $ \a b c -> qi (a*x) (b*x) c
+qiMulR :: QI -> Rational -> QI
+qiMulR n x = unQI n $ \a b c -> qi (a*x) (b*x) c
 
-qiDiv :: QI -> Rational -> QI
-qiDiv n (nonZero "qiDiv" -> x) = qiMul n (recip x)
+qiDivR :: QI -> Rational -> QI
+qiDivR n (nonZero "qiDiv" -> x) = qiMulR n (recip x)
 
 qiRecip :: QI -> Maybe QI
 qiRecip n = unQI' n $ \a b c d ->

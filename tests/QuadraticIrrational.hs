@@ -56,21 +56,21 @@ tests =
       [ testProperty "qiSimplify" $ \n ->
           approxEq' (unQI n approxQI) (unQI (qiSimplify n) approxQI)
 
-      , testProperty "qiAdd" $ \n x ->
-          approxEq' (unQI (qiAdd n x) approxQI)
+      , testProperty "qiAddR" $ \n x ->
+          approxEq' (unQI (qiAddR n x) approxQI)
                     (unQI n approxQI + fromRational x)
 
-      , testProperty "qiSub" $ \n x ->
-          approxEq' (unQI (qiSub n x) approxQI)
+      , testProperty "qiSubR" $ \n x ->
+          approxEq' (unQI (qiSubR n x) approxQI)
                     (unQI n approxQI - fromRational x)
 
-      , testProperty "qiMul" $ \n x ->
-          approxEq' (unQI (qiMul n x) approxQI)
+      , testProperty "qiMulR" $ \n x ->
+          approxEq' (unQI (qiMulR n x) approxQI)
                     (unQI n approxQI * fromRational x)
 
-      , testProperty "qiMul" $ \n x ->
+      , testProperty "qiDivR" $ \n x ->
           x /= 0 ==>
-            approxEq' (unQI (qiDiv n x) approxQI)
+            approxEq' (unQI (qiDivR n x) approxQI)
                       (unQI n approxQI / fromRational x)
 
       , testProperty "qiRecip" $ \n ->
