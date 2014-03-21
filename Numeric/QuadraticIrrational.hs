@@ -30,6 +30,7 @@ qi :: Rational  -- ^ a
    -> QI
 qi a 0 _ = QI a 0 0
 qi a _ 0 = QI a 0 0
+qi a b 1 = QI (a + b) 0 0
 qi a b (nonNegative "qi" -> c) = QI a b c
 
 -- | Given @a@, @b@, @c@ and @d@ such that @n = (a + b √c)/d@, constuct a 'QI'
