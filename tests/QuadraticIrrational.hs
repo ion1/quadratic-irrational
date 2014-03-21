@@ -5,15 +5,14 @@
 module Main (main) where
 
 import Control.Applicative
---import Numeric.Compensated
+import Data.Number.CReal
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
 import Numeric.QuadraticIrrational
 
---type RefFloat = Overcompensated Double
--- TODO Double precision issues.
-type RefFloat = Double
+-- Slow but precise.
+type RefFloat = CReal
 
 instance Arbitrary QI where
   arbitrary = consQI <$> arbitrary <*> arbitrary <*> arbitrary
@@ -83,7 +82,8 @@ tests =
 
       , testProperty "qiPow" $ \n (NonNegative p) ->
           approxEq' (unQI (qiPow n p) approxQI)
-                    (unQI n approxQI ** fromInteger p)
+                    -- CReal seems to diverge in 0 ** 1, use (^).
+                    (unQI n approxQI ^ p)
       ]
     ]
 

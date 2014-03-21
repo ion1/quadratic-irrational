@@ -16,7 +16,7 @@ test-suite test-quadratic-irrational
   hs-source-dirs: tests
   build-depends: base
                , quadratic-irrational
-               , compensated == 0.5.*
+               , numbers == 3000.*
                , QuickCheck >= 2.7 && < 3
                , tasty == 0.8.*
                , tasty-quickcheck == 0.8.*
