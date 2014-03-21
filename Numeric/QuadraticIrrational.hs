@@ -4,7 +4,8 @@ module Numeric.QuadraticIrrational
   ( QI, qi, qi', unQI, unQI'
   , qiToFloat
   , qiSimplify
-  , qiAddR, qiSubR, qiMulR, qiDivR, qiNegate, qiRecip, qiPow
+  , qiAddR, qiSubR, qiMulR, qiDivR
+  , qiNegate, qiRecip, qiAdd, qiSub, qiMul, qiDiv, qiPow
   ) where
 
 -- TODO http://hackage.haskell.org/package/continued-fractions
@@ -107,6 +108,39 @@ qiRecip n = unQI' n $ \a b c d ->
   -- a d − b d √c / (a² − b² c)
   let denom = (a*a - b*b * toInteger c)
   in  qi' (a * d) (negate (b * d)) c denom <$ guard (denom /= 0)
+
+-- | Add two 'QI's if the square root terms are the same or zeros.
+qiAdd :: QI -> QI -> Maybe QI
+qiAdd n n' = unQI n $ \a b c -> unQI n' $ \a' b' c' -> go a b c a' b' c'
+  where
+    -- a + b √c + a' + b' √c =
+    -- (a + a') + (b + b') √c
+    go a b c a' b' c'
+      | c  == 0   = Just (qi (a + a') b'       c')
+      | c' == 0   = Just (qi (a + a') b        c)
+      | c  == c'  = Just (qi (a + a') (b + b') c)
+      | otherwise = Nothing
+
+-- | Subtract two 'QI's if the square root terms are the same or zeros.
+qiSub :: QI -> QI -> Maybe QI
+qiSub n n' = qiAdd n (qiNegate n')
+
+-- | Multiply two 'QI's if the square root terms are the same or zeros.
+qiMul :: QI -> QI -> Maybe QI
+qiMul n n' = unQI n $ \a b c -> unQI n' $ \a' b' c' -> go a b c a' b' c'
+  where
+    -- (a + b √c) (a' + b' √c)           =
+    -- a a' + a b' √c + a' b √c + b b' c =
+    -- (a a' + b b' c) + (a b' + a' b) √c
+    go a b c a' b' c'
+      | c  == 0   = Just (qiMulR n' a)
+      | c' == 0   = Just (qiMulR n  a')
+      | c  == c'  = Just (qi (a*a' + b*b'*fromInteger c) (a*b' + a'*b) c)
+      | otherwise = Nothing
+
+-- | Divide two 'QI's if the square root terms are the same or zeros.
+qiDiv :: QI -> QI -> Maybe QI
+qiDiv n n' = qiMul n =<< qiRecip n'
 
 qiPow :: QI -> Integer -> QI
 qiPow num (nonNegative "qiPow" -> pow) = unQI num $ \a b c ->
