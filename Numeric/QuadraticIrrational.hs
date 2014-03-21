@@ -6,6 +6,7 @@ module Numeric.QuadraticIrrational
   , qiSimplify
   , qiAddR, qiSubR, qiMulR, qiDivR
   , qiNegate, qiRecip, qiAdd, qiSub, qiMul, qiDiv, qiPow
+  , qiFloor
   ) where
 
 -- TODO http://hackage.haskell.org/package/continued-fractions
@@ -15,6 +16,7 @@ import Control.Arrow (first)
 import Control.Monad (guard)
 import Data.List
 import Data.Ratio
+import Math.NumberTheory.Powers.Squares
 import Math.NumberTheory.Primes.Factorisation
 
 -- | @a + b √c@
@@ -162,6 +164,24 @@ qiPow num (nonNegative "qiPow" -> pow) = go num pow
 
     -- Multiplying a QI with its own power will always succeed.
     sudoQIMul n n' = case qiMul n n' of ~(Just m) -> m
+
+qiFloor :: QI -> Integer
+qiFloor (unQI' -> ~(a,b,c,d)) =
+  -- n = (a + b √c)/d
+  -- n d = a + b √c
+  -- n d = a + signum b · √(b² c)
+  n_d `div` d
+  where
+    n_d = a + min (signum b * b2cLow) (signum b * b2cHigh)
+
+    ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
+
+iSqrtBounds :: Integer -> (Integer, Integer)
+iSqrtBounds n = (low, high)
+  where
+    low = integerSquareRoot n
+    high | low*low == n = low
+         | otherwise    = low + 1
 
 nonNegative :: (Num a, Ord a, Show a) => String -> a -> a
 nonNegative name = validate name "non-negative" (>= 0)

@@ -105,6 +105,9 @@ tests =
           approxEq' (qiToFloat (qiPow n p))
                     -- CReal seems to diverge in 0 ** 1, use (^).
                     (qiToFloat n ^ p)
+
+      , testProperty "qiFloor" $ \n ->
+          qiFloor n === floor (qiToFloat n :: RefFloat)
       ]
     ]
 
