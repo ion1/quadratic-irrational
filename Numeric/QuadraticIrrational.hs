@@ -4,7 +4,7 @@ module Numeric.QuadraticIrrational
   ( QI, qi, qi', unQI, unQI'
   , qiToFloat
   , qiSimplify
-  , qiAddR, qiSubR, qiMulR, qiDivR, qiRecip, qiPow
+  , qiAddR, qiSubR, qiMulR, qiDivR, qiNegate, qiRecip, qiPow
   ) where
 
 -- TODO http://hackage.haskell.org/package/continued-fractions
@@ -94,6 +94,9 @@ qiMulR n x = unQI n $ \a b c -> qi (a*x) (b*x) c
 
 qiDivR :: QI -> Rational -> QI
 qiDivR n (nonZero "qiDiv" -> x) = qiMulR n (recip x)
+
+qiNegate :: QI -> QI
+qiNegate n = qiMulR n (-1)
 
 qiRecip :: QI -> Maybe QI
 qiRecip n = unQI' n $ \a b c d ->

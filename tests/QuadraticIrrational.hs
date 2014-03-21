@@ -73,6 +73,9 @@ tests =
             approxEq' (unQI (qiDivR n x) approxQI)
                       (unQI n approxQI / fromRational x)
 
+      , testProperty "qiNegate" $ \n ->
+          approxEq' (unQI (qiNegate n) approxQI) (negate (unQI n approxQI))
+
       , testProperty "qiRecip" $ \n ->
           not (approxEq (unQI n approxQI) 0)
             ==> let ~(Just nr) = qiRecip n
