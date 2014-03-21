@@ -80,27 +80,27 @@ tests =
             ==> let ~(Just nr) = qiRecip n
                 in  approxEq' (unQI nr approxQI) (recip (unQI n approxQI))
 
-      , testProperty "qiAdd" $ \a b (NonNegative c) a' b' ->
-          let n  = qi a  b  c
-              n' = qi a' b' c
+      , testProperty "qiAdd" $ \a b (NonNegative c) a' b' c0Zero c1Zero ->
+          let n  = qi a  b  (if c0Zero then 0 else c)
+              n' = qi a' b' (if c1Zero then 0 else c)
               ~(Just r) = qiAdd n n'
           in  approxEq' (unQI r approxQI) (unQI n approxQI + unQI n' approxQI)
 
-      , testProperty "qiSub" $ \a b (NonNegative c) a' b' ->
-          let n  = qi a  b  c
-              n' = qi a' b' c
+      , testProperty "qiSub" $ \a b (NonNegative c) a' b' c0Zero c1Zero ->
+          let n  = qi a  b  (if c0Zero then 0 else c)
+              n' = qi a' b' (if c1Zero then 0 else c)
               ~(Just r) = qiSub n n'
           in  approxEq' (unQI r approxQI) (unQI n approxQI - unQI n' approxQI)
 
-      , testProperty "qiMul" $ \a b (NonNegative c) a' b' ->
-          let n  = qi a  b  c
-              n' = qi a' b' c
+      , testProperty "qiMul" $ \a b (NonNegative c) a' b' c0Zero c1Zero ->
+          let n  = qi a  b  (if c0Zero then 0 else c)
+              n' = qi a' b' (if c1Zero then 0 else c)
               ~(Just r) = qiMul n n'
           in  approxEq' (unQI r approxQI) (unQI n approxQI * unQI n' approxQI)
 
-      , testProperty "qiDiv" $ \a b (NonNegative c) a' b' ->
-          let n  = qi a  b  c
-              n' = qi a' b' c
+      , testProperty "qiDiv" $ \a b (NonNegative c) a' b' c0Zero c1Zero ->
+          let n  = qi a  b  (if c0Zero then 0 else c)
+              n' = qi a' b' (if c1Zero then 0 else c)
               ~(Just r) = qiDiv n n'
           in  not (approxEq (unQI n' approxQI) 0)
                 ==> approxEq' (unQI r approxQI)
