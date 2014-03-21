@@ -143,33 +143,23 @@ qiDiv :: QI -> QI -> Maybe QI
 qiDiv n n' = qiMul n =<< qiRecip n'
 
 qiPow :: QI -> Integer -> QI
-qiPow num (nonNegative "qiPow" -> pow) = unQI num $ \a b c ->
-  let ~(a', b') = foldl' (addTerm a b c) (0, 0) . map binom $ [0..pow]
-  in  qi a' b' c
+qiPow num (nonNegative "qiPow" -> pow) = go num pow
   where
-    -- multiplier, a power, (b √c) power
-    binom k = (pow `choose` k, pow - k, k)
+    go _ 0 = qi 1 0 0
+    go n 1 = n
+    go n p
+      | even p    = go  (sudoQIMul n n) (p     `div` 2)
+      | otherwise = go' (sudoQIMul n n) ((p-1) `div` 2) n
 
-    -- (a + b √c)⁴                                                     =
-    -- a⁴  +  4 a³ (b √c)  +  6 a² (b √c)²  +  4 a (b √c)³  +  (b √c)⁴ =
-    -- a⁴  +  4 a³ b √c    +  6 a² b² c     +  4 a b³ √c³   +  b⁴ c²   =
-    --  a⁴  +  6 a² b² c  +  b⁴ c²   +   4 a³ b √c    +  4 a b³ √c³    =
-    -- (a⁴  +  6 a² b² c  +  b⁴ c²)  +  (4 a³ b √c/√c +  4 a b³ √c³/√c) √c
-    addTerm a b c ~(a', b') ~(mul, aPow, bsqcPow)
-      | even bsqcPow = (a' + term a b c mul aPow bsqcPow bsqcPow, b')
-      | otherwise    = (a', b' + term a b c mul aPow bsqcPow (bsqcPow-1))
+    -- Like go but multiplied with n'.
+    go' _ 0 n' = n'
+    go' n 1 n' = sudoQIMul n n'
+    go' n p n'
+      | even p    = go' (sudoQIMul n n) (p     `div` 2) n'
+      | otherwise = go' (sudoQIMul n n) ((p-1) `div` 2) (sudoQIMul n n')
 
-    term a b c mul aPow bPow cPow =
-      fromInteger mul * a^aPow * b^bPow * fromInteger c^(cPow `div` 2)
-
-choose :: Integral a => a -> a -> a
-choose n' k'
-  | k' < n' - k' = choose n' (n' - k')
-  | otherwise = go n' k'
-  where
-    go _ 0 = 1
-    go 0 _ = 0
-    go n k = (n * choose (n - 1) (k - 1)) `div` k
+    -- Multiplying a QI with itself or by 1 will always succeed.
+    sudoQIMul n n' = case qiMul n n' of ~(Just m) -> m
 
 nonNegative :: (Num a, Ord a, Show a) => String -> a -> a
 nonNegative name = validate name "non-negative" (>= 0)
