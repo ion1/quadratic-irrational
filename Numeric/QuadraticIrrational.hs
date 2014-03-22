@@ -6,24 +6,28 @@ module Numeric.QuadraticIrrational
   , qiSimplify
   , qiAddR, qiSubR, qiMulR, qiDivR
   , qiNegate, qiRecip, qiAdd, qiSub, qiMul, qiDiv, qiPow
-  , qiFloor
+  , qiFloor, qiToContinuedFraction
+  , module Numeric.QuadraticIrrational.CyclicList
   ) where
-
--- TODO http://hackage.haskell.org/package/continued-fractions
 
 import Control.Applicative ((<$))
 import Control.Arrow (first)
-import Control.Monad (guard)
+import Control.Monad.State
 import Data.List
 import Data.Ratio
+import qualified Data.Set as Set
 import Math.NumberTheory.Powers.Squares
 import Math.NumberTheory.Primes.Factorisation
+
+import Numeric.QuadraticIrrational.CyclicList
 
 -- | @a + b √c@
 data QI = QI !Rational  -- ^ a
              !Rational  -- ^ b
              !Integer   -- ^ c
   deriving (Show, Read)
+
+type QITuple = (Rational, Rational, Integer)
 
 -- | Given @a@, @b@ and @c@ such that @n = a + b √c@, constuct a 'QI'
 -- corresponding to @n@.
@@ -175,6 +179,41 @@ qiFloor (unQI' -> ~(a,b,c,d)) =
     n_d = a + min (signum b * b2cLow) (signum b * b2cHigh)
 
     ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
+
+-- Convert a 'QI' into a periodic continued fraction representation.
+qiToContinuedFraction :: QI
+                      -> (Integer, CycList Integer)
+qiToContinuedFraction num
+  | Just isLoopQI <- loopQI =
+      case break isLoopQI cfs of
+        (preLoop, ~(i:postLoop)) ->
+          let is = takeWhile (not . isLoopQI) postLoop
+          in  (i0, Cyc (map snd preLoop) (snd i) (map snd is))
+  | otherwise =
+      (i0, NonCyc (map snd cfs))
+  where
+    (i0, cfs) = qiToContinuedFractionList num
+
+    loopQI :: Maybe ((QITuple,a) -> Bool)
+    loopQI = evalState (go cfs) Set.empty
+      where
+        go ((n,_) : xs) = do
+          haveSeen <- gets (Set.member n)
+          modify (Set.insert n)
+          if haveSeen
+            then return (Just ((== n) . fst))
+            else go xs
+        go [] = return Nothing
+
+qiToContinuedFractionList :: QI -> (Integer, [(QITuple, Integer)])
+qiToContinuedFractionList num =
+  case go (Just num) of
+    -- There is always a first number.
+    ~((_,i) : xs) -> (i, xs)
+  where
+    go (Just n) = (unQI n, i) : go (qiRecip (qiSubR n (fromInteger i)))
+      where i = qiFloor n
+    go Nothing  = []
 
 iSqrtBounds :: Integer -> (Integer, Integer)
 iSqrtBounds n = (low, high)

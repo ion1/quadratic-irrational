@@ -108,6 +108,9 @@ tests =
 
       , testProperty "qiFloor" $ \n ->
           qiFloor n === floor (qiToFloat n :: RefFloat)
+
+      -- TODO
+      , testProperty "qiToContinuedFraction" False
       ]
     ]
 
