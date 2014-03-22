@@ -102,9 +102,11 @@ tests =
                 ==> approxEq' (qiToFloat r) (qiToFloat n / qiToFloat n')
 
       , testProperty "qiPow" $ \n (NonNegative p) ->
-          approxEq' (qiToFloat (qiPow n p))
-                    -- CReal seems to diverge in 0 ** 1, use (^).
-                    (qiToFloat n ^ p)
+          -- Limit the power for speed.
+          (p <= 10) ==>
+            approxEq' (qiToFloat (qiPow n p))
+                      -- CReal seems to diverge in 0 ** 1, use (^).
+                      (qiToFloat n ^ p)
 
       , testProperty "qiFloor" $ \n ->
           qiFloor n === floor (qiToFloat n :: RefFloat)
