@@ -96,20 +96,20 @@ separateSquareFactors = first fromInteger . foldl' go (1,1) . factorise
       | even pow  = (a*fac^(pow     `div` 2), b)
       | otherwise = (a*fac^((pow-1) `div` 2), b*fac)
 
-qiAddR :: QI -> Rational -> QI
-qiAddR (unQI -> ~(a,b,c)) x = qi (a+x) b c
+qiAddR :: Real a => QI -> a -> QI
+qiAddR (unQI -> ~(a,b,c)) (toRational -> x) = qi (a+x) b c
 
-qiSubR :: QI -> Rational -> QI
-qiSubR n x = qiAddR n (negate x)
+qiSubR :: Real a => QI -> a -> QI
+qiSubR n (toRational -> x) = qiAddR n (negate x)
 
-qiMulR :: QI -> Rational -> QI
-qiMulR (unQI -> ~(a,b,c)) x = qi (a*x) (b*x) c
+qiMulR :: Real a => QI -> a -> QI
+qiMulR (unQI -> ~(a,b,c)) (toRational -> x) = qi (a*x) (b*x) c
 
-qiDivR :: QI -> Rational -> QI
-qiDivR n (nonZero "qiDiv" -> x) = qiMulR n (recip x)
+qiDivR :: (Show a, Real a) => QI -> a -> QI
+qiDivR n (toRational . nonZero "qiDiv" -> x) = qiMulR n (recip x)
 
 qiNegate :: QI -> QI
-qiNegate n = qiMulR n (-1)
+qiNegate n = qiMulR n (-1 :: Rational)
 
 qiRecip :: QI -> Maybe QI
 qiRecip (unQI' -> ~(a,b,c,d)) =
@@ -211,7 +211,7 @@ qiToContinuedFractionList num =
     -- There is always a first number.
     ~((_,i) : xs) -> (i, xs)
   where
-    go (Just n) = (unQI n, i) : go (qiRecip (qiSubR n (fromInteger i)))
+    go (Just n) = (unQI n, i) : go (qiRecip (qiSubR n i))
       where i = qiFloor n
     go Nothing  = []
 
