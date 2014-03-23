@@ -104,9 +104,9 @@ tests =
       , testProperty "qiFloor" $ \n ->
           qiFloor n === floor (qiToFloat n :: RefFloat)
 
-      -- TODO
-      , testProperty "continuedFractionToQI" False
-      , testProperty "qiToContinuedFraction" False
+      , testProperty "qiToContinuedFraction/continuedFractionToQI" $ \n ->
+          approxEq' (qiToFloat n)
+                    (qiToFloat (continuedFractionToQI (qiToContinuedFraction n)))
       ]
     ]
 
