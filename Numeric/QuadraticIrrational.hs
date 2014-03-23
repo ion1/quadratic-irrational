@@ -31,27 +31,14 @@ data QI = QI !Integer  -- ^ a
 
 type QITuple = (Integer, Integer, Integer, Integer)
 
--- | Given @a@, @b@ and @c@ such that @n = a + b √c@, constuct a 'QI'
--- corresponding to @n@.
-qi :: Rational  -- ^ a
-   -> Rational  -- ^ b
-   -> Integer   -- ^ c
-   -> QI
-qi a b (nonNegative "qi" -> c) = n
-  where
-    -- (aN/aD) + (bN/bD) √c = ((aN bD) + (bN aD) √c) / (aD bD)
-    n = qi' (aN*bD) (bN*aD) c (aD*bD)
-    (aN, aD) = (numerator a, denominator a)
-    (bN, bD) = (numerator b, denominator b)
-
 -- | Given @a@, @b@, @c@ and @d@ such that @n = (a + b √c)/d@, constuct a 'QI'
 -- corresponding to @n@.
-qi' :: Integer  -- ^ a
-    -> Integer  -- ^ b
-    -> Integer  -- ^ c
-    -> Integer  -- ^ d
-    -> QI
-qi' a b (nonNegative "qi'" -> c) (nonZero "qi'" -> d)
+qi :: Integer  -- ^ a
+   -> Integer  -- ^ b
+   -> Integer  -- ^ c
+   -> Integer  -- ^ d
+   -> QI
+qi a b (nonNegative "qi" -> c) (nonZero "qi" -> d)
   | b == 0    = go a 0 0 d
   | c == 0    = go a 0 0 d
   | c == 1    = go (a + b) 0 0 d
@@ -61,33 +48,45 @@ qi' a b (nonNegative "qi'" -> c) (nonZero "qi'" -> d)
     go i j k l = QI (i `quot` q) (j `quot` q) k (l `quot` q)
       where q = signum l * (i `gcd` j `gcd` l)
 
--- | Given @n@ and @f@ such that @n = a + b √c@, run @f a b c@.
-runQI :: QI -> (Rational -> Rational -> Integer -> a) -> a
-runQI (QI a b c d) f = f (a % d) (b % d) c
+-- | Given @a@, @b@ and @c@ such that @n = a + b √c@, constuct a 'QI'
+-- corresponding to @n@.
+qi' :: Rational  -- ^ a
+    -> Rational  -- ^ b
+    -> Integer   -- ^ c
+    -> QI
+qi' a b (nonNegative "qi'" -> c) = n
+  where
+    -- (aN/aD) + (bN/bD) √c = ((aN bD) + (bN aD) √c) / (aD bD)
+    n = qi (aN*bD) (bN*aD) c (aD*bD)
+    (aN, aD) = (numerator a, denominator a)
+    (bN, bD) = (numerator b, denominator b)
 
 -- | Given @n@ and @f@ such that @n = (a + b √c)/d@, run @f a b c d@.
-runQI' :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
-runQI' (QI a b c d) f = f a b c d
+runQI :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
+runQI (QI a b c d) f = f a b c d
 
--- | Given @n@ such that @n = a + b √c@, return @(a, b, c)@.
-unQI :: QI -> (Rational, Rational, Integer)
-unQI n = runQI n (,,)
+-- | Given @n@ and @f@ such that @n = a + b √c@, run @f a b c@.
+runQI' :: QI -> (Rational -> Rational -> Integer -> a) -> a
+runQI' (QI a b c d) f = f (a % d) (b % d) c
 
 -- | Given @n@ such that @n = (a + b √c)/d@, return @(a, b, c, d)@.
-unQI' :: QI -> (Integer, Integer, Integer, Integer)
-unQI' n = runQI' n (,,,)
+unQI :: QI -> (Integer, Integer, Integer, Integer)
+unQI n = runQI n (,,,)
+
+-- | Given @n@ such that @n = a + b √c@, return @(a, b, c)@.
+unQI' :: QI -> (Rational, Rational, Integer)
+unQI' n = runQI' n (,,)
 
 qiToFloat :: Floating a => QI -> a
-qiToFloat (unQI -> ~(a,b,c)) =
+qiToFloat (unQI' -> ~(a,b,c)) =
   fromRational a + fromRational b * sqrt (fromInteger c)
 
 -- | Change a 'QI' to a potentially simpler form. Will factorize the number
 -- inside the square root internally.
 qiSimplify :: QI -> QI
-qiSimplify (unQI -> ~(a,b,c))
-  | c  == 0   = qi a 0 0
-  | c' == 1   = qi (a + b') 0 0
-  | otherwise = qi a b' c'
+qiSimplify (unQI' -> ~(a,b,c))
+  | c == 0    = qi' a 0 0
+  | otherwise = qi' a b' c'
   where
     ~(b', c') = first (b *) (separateSquareFactors c)
 
@@ -114,13 +113,13 @@ qiSimplifyAlt (unQI -> ~(a_,b_,c_)) = go a_ b_ c_ (integerSquareRoot c_)
 -}
 
 qiAddR :: Real a => QI -> a -> QI
-qiAddR (unQI -> ~(a,b,c)) (toRational -> x) = qi (a+x) b c
+qiAddR (unQI' -> ~(a,b,c)) (toRational -> x) = qi' (a+x) b c
 
 qiSubR :: Real a => QI -> a -> QI
 qiSubR n (toRational -> x) = qiAddR n (negate x)
 
 qiMulR :: Real a => QI -> a -> QI
-qiMulR (unQI -> ~(a,b,c)) (toRational -> x) = qi (a*x) (b*x) c
+qiMulR (unQI' -> ~(a,b,c)) (toRational -> x) = qi' (a*x) (b*x) c
 
 qiDivR :: (Show a, Real a) => QI -> a -> QI
 qiDivR n (toRational . nonZero "qiDiv" -> x) = qiMulR n (recip x)
@@ -129,21 +128,21 @@ qiNegate :: QI -> QI
 qiNegate n = qiMulR n (-1 :: Rational)
 
 qiRecip :: QI -> Maybe QI
-qiRecip (unQI' -> ~(a,b,c,d)) =
+qiRecip (unQI -> ~(a,b,c,d)) =
   -- 1/((a + b √c)/d)                       =
   -- d/(a + b √c)                           =
   -- d (a − b √c) / ((a + b √c) (a − b √c)) =
   -- d (a − b √c) / (a² − b² c)             =
   -- a d − b d √c / (a² − b² c)
-  qi' (a * d) (negate (b * d)) c denom <$ guard (denom /= 0)
-  where denom = (a*a - b*b * toInteger c)
+  qi (a * d) (negate (b * d)) c denom <$ guard (denom /= 0)
+  where denom = (a*a - b*b * c)
 
 -- | Add two 'QI's if the square root terms are the same or zeros.
 qiAdd :: QI -> QI -> Maybe QI
-qiAdd (unQI -> ~(a,b,c)) (unQI -> ~(a',b',c'))
-  | c  == 0   = Just (qi (a + a') b'       c')
-  | c' == 0   = Just (qi (a + a') b        c)
-  | c  == c'  = Just (qi (a + a') (b + b') c)
+qiAdd (unQI' -> ~(a,b,c)) (unQI' -> ~(a',b',c'))
+  | c  == 0   = Just (qi' (a + a') b'       c')
+  | c' == 0   = Just (qi' (a + a') b        c)
+  | c  == c'  = Just (qi' (a + a') (b + b') c)
                 -- a + b √c + a' + b' √c =
                 -- (a + a') + (b + b') √c
   | otherwise = Nothing
@@ -154,10 +153,10 @@ qiSub n n' = qiAdd n (qiNegate n')
 
 -- | Multiply two 'QI's if the square root terms are the same or zeros.
 qiMul :: QI -> QI -> Maybe QI
-qiMul n@(unQI -> ~(a,b,c)) n'@(unQI -> ~(a',b',c'))
+qiMul n@(unQI' -> ~(a,b,c)) n'@(unQI' -> ~(a',b',c'))
   | c  == 0   = Just (qiMulR n' a)
   | c' == 0   = Just (qiMulR n  a')
-  | c  == c'  = Just (qi (a*a' + b*b'*fromInteger c) (a*b' + a'*b) c)
+  | c  == c'  = Just (qi' (a*a' + b*b'*fromInteger c) (a*b' + a'*b) c)
                 -- (a + b √c) (a' + b' √c)           =
                 -- a a' + a b' √c + a' b √c + b b' c =
                 -- (a a' + b b' c) + (a b' + a' b) √c
@@ -170,7 +169,7 @@ qiDiv n n' = qiMul n =<< qiRecip n'
 qiPow :: QI -> Integer -> QI
 qiPow num (nonNegative "qiPow" -> pow) = go num pow
   where
-    go _ 0 = qi 1 0 0
+    go _ 0 = qi 1 0 0 1
     go n 1 = n
     go n p
       | even p    = go  (sudoQIMul n n) (p     `div` 2)
@@ -187,7 +186,7 @@ qiPow num (nonNegative "qiPow" -> pow) = go num pow
     sudoQIMul n n' = case qiMul n n' of ~(Just m) -> m
 
 qiFloor :: QI -> Integer
-qiFloor (unQI' -> ~(a,b,c,d)) =
+qiFloor (unQI -> ~(a,b,c,d)) =
   -- n = (a + b √c)/d
   -- n d = a + b √c
   -- n d = a + signum b · √(b² c)
@@ -202,7 +201,7 @@ qiFloor (unQI' -> ~(a,b,c,d)) =
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
 continuedFractionToQI (i0_, is_) = qiAddR (go is_) i0_
   where
-    go (NonCyc as)   = goNonCyc as (qi 0 0 0)
+    go (NonCyc as)   = goNonCyc as (qi 0 0 0 1)
     go (Cyc as b bs) = goNonCyc as (goCyc (b:bs))
 
     goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddR (goNonCyc is final) i)
@@ -221,7 +220,7 @@ continuedFractionToQI (i0_, is_) = qiAddR (go is_) i0_
           a `seq` b `seq` c `seq` d `seq`
             qfPos c (d - a) (negate b)
       where
-        qfPos i j k = qi' (negate j) 1 (j*j - 4*i*k) (2*i)
+        qfPos i j k = qi (negate j) 1 (j*j - 4*i*k) (2*i)
 
     -- i + 1/((a x + b) / (c x + d))      =
     -- i + (c x + d)/(a x + b)            =
@@ -272,7 +271,7 @@ qiToContinuedFractionList num =
     -- There is always a first number.
     ~((_,i) : xs) -> (i, xs)
   where
-    go (Just n) = (unQI' n, i) : go (qiRecip (qiSubR n i))
+    go (Just n) = (unQI n, i) : go (qiRecip (qiSubR n i))
       where i = qiFloor n
     go Nothing  = []
 
