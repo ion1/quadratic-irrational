@@ -77,28 +77,20 @@ tests =
             ==> let ~(Just nr) = qiRecip n
                 in  approxEq' (qiToFloat nr) (recip (qiToFloat n))
 
-      , testProperty "qiAdd" $ \a b (NonNegative c) (NonZero d) a' b' (NonZero d') c0Zero c1Zero ->
-          let n  = qi a  b  (if c0Zero then 0 else c) d
-              n' = qi a' b' (if c1Zero then 0 else c) d'
-              ~(Just r) = qiAdd n n'
+      , testProperty "qiAdd" . withCompatiblePair $ \n n' ->
+          let ~(Just r) = qiAdd n n'
           in  approxEq' (qiToFloat r) (qiToFloat n + qiToFloat n')
 
-      , testProperty "qiSub" $ \a b (NonNegative c) (NonZero d) a' b' (NonZero d') c0Zero c1Zero ->
-          let n  = qi a  b  (if c0Zero then 0 else c) d
-              n' = qi a' b' (if c1Zero then 0 else c) d'
-              ~(Just r) = qiSub n n'
+      , testProperty "qiSub" . withCompatiblePair $ \n n' ->
+          let ~(Just r) = qiSub n n'
           in  approxEq' (qiToFloat r) (qiToFloat n - qiToFloat n')
 
-      , testProperty "qiMul" $ \a b (NonNegative c) (NonZero d) a' b' (NonZero d') c0Zero c1Zero ->
-          let n  = qi a  b  (if c0Zero then 0 else c) d
-              n' = qi a' b' (if c1Zero then 0 else c) d'
-              ~(Just r) = qiMul n n'
+      , testProperty "qiMul" . withCompatiblePair $ \n n' ->
+          let ~(Just r) = qiMul n n'
           in  approxEq' (qiToFloat r) (qiToFloat n * qiToFloat n')
 
-      , testProperty "qiDiv" $ \a b (NonNegative c) (NonZero d) a' b' (NonZero d') c0Zero c1Zero ->
-          let n  = qi a  b  (if c0Zero then 0 else c) d
-              n' = qi a' b' (if c1Zero then 0 else c) d'
-              ~(Just r) = qiDiv n n'
+      , testProperty "qiDiv" . withCompatiblePair $ \n n' ->
+          let ~(Just r) = qiDiv n n'
           in  not (approxEq (qiToFloat n') 0)
                 ==> approxEq' (qiToFloat r) (qiToFloat n / qiToFloat n')
 
@@ -117,6 +109,18 @@ tests =
       , testProperty "qiToContinuedFraction" False
       ]
     ]
+
+withCompatiblePair :: Testable p
+                   => (QI -> QI -> p) -> QI -> QI -> Bool -> Bool -> Property
+withCompatiblePair f n0_ n1_ c0Zero c1Zero =
+  counterexample ("n0 = " ++ show n0) . counterexample ("n1 = " ++ show n1) $
+    f n0 n1
+  where
+    n0 = runQI n0_ $ \a b c d ->
+           qi a b (if c0Zero then 0 else c) d
+
+    n1 = runQI n0_ $ \_ _ c _ -> runQI n1_ $ \a b _ d ->
+           qi a b (if c1Zero then 0 else c) d
 
 approxQI :: Integer -> Integer -> Integer -> Integer -> RefFloat
 approxQI a b c d =
