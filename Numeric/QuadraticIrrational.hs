@@ -97,6 +97,18 @@ separateSquareFactors = first fromInteger . foldl' go (1,1) . factorise
       | even pow  = (a*fac^(pow     `div` 2), b)
       | otherwise = (a*fac^((pow-1) `div` 2), b*fac)
 
+-- Even less efficient than factorization.
+{-
+qiSimplifyAlt :: QI -> QI
+qiSimplifyAlt (unQI -> ~(a_,b_,c_)) = go a_ b_ c_ (integerSquareRoot c_)
+  where
+    go a b c r
+      | r < 2 = qi a b c
+      | (c',0) <- c `divMod` (r*r) =
+          go a (b*fromInteger r) c' (integerSquareRoot c')
+      | otherwise = go a b c (r-1)
+-}
+
 qiAddR :: Real a => QI -> a -> QI
 qiAddR (unQI -> ~(a,b,c)) (toRational -> x) = qi (a+x) b c
 
