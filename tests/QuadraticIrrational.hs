@@ -15,14 +15,15 @@ import Numeric.QuadraticIrrational
 type RefFloat = CReal
 
 instance Arbitrary QI where
-  arbitrary = consQI <$> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary = consQI <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
     where
-     consQI a b (NonNegative c) = qi' a b c
+     consQI a b (NonNegative c) (NonZero d) = qi a b c d
 
-  shrink (unQI' -> ~(a,b,c)) =
-    [ qi' a' b  c  | a' <- shrink a ] ++
-    [ qi' a  b' c  | b' <- shrink b ] ++
-    [ qi' a  b  c' | NonNegative c' <- shrink (NonNegative c) ]
+  shrink (unQI -> ~(a,b,c,d)) =
+    [ qi a' b  c  d  | a' <- shrink a ] ++
+    [ qi a  b' c  d  | b' <- shrink b ] ++
+    [ qi a  b  c' d  | NonNegative c' <- shrink (NonNegative c) ] ++
+    [ qi a  b  c  d' | NonZero     d' <- shrink (NonZero     d) ]
 
 main :: IO ()
 main = defaultMain tests
@@ -47,8 +48,8 @@ tests =
           runQI' (qi' a b c) $ \a' b' c' ->
             approxEq' (approxQI' a b c) (approxQI' a' b' c')
 
-      , testProperty "qiToFloat" $ \a b (NonNegative c) ->
-          approxEq' (qiToFloat (qi' a b c)) (approxQI' a b c)
+      , testProperty "qiToFloat" $ \a b (NonNegative c) (NonZero d) ->
+          approxEq' (qiToFloat (qi a b c d)) (approxQI a b c d)
       ]
 
     , testGroup "Numerical operations"
@@ -76,27 +77,27 @@ tests =
             ==> let ~(Just nr) = qiRecip n
                 in  approxEq' (qiToFloat nr) (recip (qiToFloat n))
 
-      , testProperty "qiAdd" $ \a b (NonNegative c) a' b' c0Zero c1Zero ->
-          let n  = qi' a  b  (if c0Zero then 0 else c)
-              n' = qi' a' b' (if c1Zero then 0 else c)
+      , testProperty "qiAdd" $ \a b (NonNegative c) (NonZero d) a' b' (NonZero d') c0Zero c1Zero ->
+          let n  = qi a  b  (if c0Zero then 0 else c) d
+              n' = qi a' b' (if c1Zero then 0 else c) d'
               ~(Just r) = qiAdd n n'
           in  approxEq' (qiToFloat r) (qiToFloat n + qiToFloat n')
 
-      , testProperty "qiSub" $ \a b (NonNegative c) a' b' c0Zero c1Zero ->
-          let n  = qi' a  b  (if c0Zero then 0 else c)
-              n' = qi' a' b' (if c1Zero then 0 else c)
+      , testProperty "qiSub" $ \a b (NonNegative c) (NonZero d) a' b' (NonZero d') c0Zero c1Zero ->
+          let n  = qi a  b  (if c0Zero then 0 else c) d
+              n' = qi a' b' (if c1Zero then 0 else c) d'
               ~(Just r) = qiSub n n'
           in  approxEq' (qiToFloat r) (qiToFloat n - qiToFloat n')
 
-      , testProperty "qiMul" $ \a b (NonNegative c) a' b' c0Zero c1Zero ->
-          let n  = qi' a  b  (if c0Zero then 0 else c)
-              n' = qi' a' b' (if c1Zero then 0 else c)
+      , testProperty "qiMul" $ \a b (NonNegative c) (NonZero d) a' b' (NonZero d') c0Zero c1Zero ->
+          let n  = qi a  b  (if c0Zero then 0 else c) d
+              n' = qi a' b' (if c1Zero then 0 else c) d'
               ~(Just r) = qiMul n n'
           in  approxEq' (qiToFloat r) (qiToFloat n * qiToFloat n')
 
-      , testProperty "qiDiv" $ \a b (NonNegative c) a' b' c0Zero c1Zero ->
-          let n  = qi' a  b  (if c0Zero then 0 else c)
-              n' = qi' a' b' (if c1Zero then 0 else c)
+      , testProperty "qiDiv" $ \a b (NonNegative c) (NonZero d) a' b' (NonZero d') c0Zero c1Zero ->
+          let n  = qi a  b  (if c0Zero then 0 else c) d
+              n' = qi a' b' (if c1Zero then 0 else c) d'
               ~(Just r) = qiDiv n n'
           in  not (approxEq (qiToFloat n') 0)
                 ==> approxEq' (qiToFloat r) (qiToFloat n / qiToFloat n')

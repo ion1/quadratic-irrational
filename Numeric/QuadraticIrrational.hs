@@ -78,21 +78,21 @@ unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
 
 qiToFloat :: Floating a => QI -> a
-qiToFloat (unQI' -> ~(a,b,c)) =
-  fromRational a + fromRational b * sqrt (fromInteger c)
+qiToFloat (unQI -> ~(a,b,c,d)) =
+  (fromInteger a + fromInteger b * sqrt (fromInteger c)) / fromInteger d
 
 -- | Change a 'QI' to a potentially simpler form. Will factorize the number
 -- inside the square root internally.
 qiSimplify :: QI -> QI
-qiSimplify (unQI' -> ~(a,b,c))
-  | c == 0    = qi' a 0 0
-  | otherwise = qi' a b' c'
+qiSimplify (unQI -> ~(a,b,c,d))
+  | c == 0    = qi a 0 0 d
+  | otherwise = qi a b' c' d
   where
     ~(b', c') = first (b *) (separateSquareFactors c)
 
 -- | Given @c@ such that @n = √c@, return @(b, c)@ such that @n = b √c@.
-separateSquareFactors :: Integer -> (Rational, Integer)
-separateSquareFactors = first fromInteger . foldl' go (1,1) . factorise
+separateSquareFactors :: Integer -> (Integer, Integer)
+separateSquareFactors = foldl' go (1,1) . factorise
                       . nonNegative "separateSquareFactors"
   where
     go :: (Integer, Integer) -> (Integer, Int) -> (Integer, Integer)
@@ -103,13 +103,13 @@ separateSquareFactors = first fromInteger . foldl' go (1,1) . factorise
 -- Even less efficient than factorization.
 {-
 qiSimplifyAlt :: QI -> QI
-qiSimplifyAlt (unQI -> ~(a_,b_,c_)) = go a_ b_ c_ (integerSquareRoot c_)
+qiSimplifyAlt (unQI -> ~(a_,b_,c_,d_)) = go a_ b_ c_ d_ (integerSquareRoot c_)
   where
-    go a b c r
-      | r < 2 = qi a b c
+    go a b c d r
+      | r < 2 = qi a b c d
       | (c',0) <- c `divMod` (r*r) =
-          go a (b*fromInteger r) c' (integerSquareRoot c')
-      | otherwise = go a b c (r-1)
+          go a (b*fromInteger r) c' d (integerSquareRoot c')
+      | otherwise = go a b c d (r-1)
 -}
 
 qiAddR :: Real a => QI -> a -> QI
