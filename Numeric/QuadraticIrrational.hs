@@ -22,13 +22,14 @@ import Math.NumberTheory.Primes.Factorisation
 
 import Numeric.QuadraticIrrational.CyclicList
 
--- | @a + b √c@
-data QI = QI !Rational  -- ^ a
-             !Rational  -- ^ b
-             !Integer   -- ^ c
+-- | @(a + b √c) / d@
+data QI = QI !Integer  -- ^ a
+             !Integer  -- ^ b
+             !Integer  -- ^ c
+             !Integer  -- ^ d
   deriving (Show, Read)
 
-type QITuple = (Rational, Rational, Integer)
+type QITuple = (Integer, Integer, Integer, Integer)
 
 -- | Given @a@, @b@ and @c@ such that @n = a + b √c@, constuct a 'QI'
 -- corresponding to @n@.
@@ -36,10 +37,12 @@ qi :: Rational  -- ^ a
    -> Rational  -- ^ b
    -> Integer   -- ^ c
    -> QI
-qi a 0 _ = QI a 0 0
-qi a _ 0 = QI a 0 0
-qi a b 1 = QI (a + b) 0 0
-qi a b (nonNegative "qi" -> c) = QI a b c
+qi a b (nonNegative "qi" -> c) = n
+  where
+    -- (aN/aD) + (bN/bD) √c = ((aN bD) + (bN aD) √c) / (aD bD)
+    n = qi' (aN*bD) (bN*aD) c (aD*bD)
+    (aN, aD) = (numerator a, denominator a)
+    (bN, bD) = (numerator b, denominator b)
 
 -- | Given @a@, @b@, @c@ and @d@ such that @n = (a + b √c)/d@, constuct a 'QI'
 -- corresponding to @n@.
@@ -48,22 +51,23 @@ qi' :: Integer  -- ^ a
     -> Integer  -- ^ c
     -> Integer  -- ^ d
     -> QI
-qi' a b (nonNegative "qi'" -> c) (nonZero "qi'" -> d) = qi (a % d) (b % d) c
+qi' a b (nonNegative "qi'" -> c) (nonZero "qi'" -> d)
+  | b == 0    = go a 0 0 d
+  | c == 0    = go a 0 0 d
+  | c == 1    = go (a + b) 0 0 d
+  | otherwise = go a b c d
+  where
+    -- Reduce the fractions and construct the QI.
+    go i j k l = QI (i `quot` q) (j `quot` q) k (l `quot` q)
+      where q = signum l * (i `gcd` j `gcd` l)
 
 -- | Given @n@ and @f@ such that @n = a + b √c@, run @f a b c@.
 runQI :: QI -> (Rational -> Rational -> Integer -> a) -> a
-runQI (QI a b c) f = f a b c
+runQI (QI a b c d) f = f (a % d) (b % d) c
 
 -- | Given @n@ and @f@ such that @n = (a + b √c)/d@, run @f a b c d@.
 runQI' :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
-runQI' (unQI -> ~(a,b,c)) f = f a' b' c d'
-  where
-    -- aN/aD + bN/bD = (aN bD + bN aD) / (aD bD)
-    a' = aN * bD
-    b' = bN * aD
-    d' = aD * bD
-    (aN, aD) = (numerator a, denominator a)
-    (bN, bD) = (numerator b, denominator b)
+runQI' (QI a b c d) f = f a b c d
 
 -- | Given @n@ such that @n = a + b √c@, return @(a, b, c)@.
 unQI :: QI -> (Rational, Rational, Integer)
@@ -268,7 +272,7 @@ qiToContinuedFractionList num =
     -- There is always a first number.
     ~((_,i) : xs) -> (i, xs)
   where
-    go (Just n) = (unQI n, i) : go (qiRecip (qiSubR n i))
+    go (Just n) = (unQI' n, i) : go (qiRecip (qiSubR n i))
       where i = qiFloor n
     go Nothing  = []
 
