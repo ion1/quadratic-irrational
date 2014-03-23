@@ -112,6 +112,7 @@ tests =
           qiFloor n === floor (qiToFloat n :: RefFloat)
 
       -- TODO
+      , testProperty "continuedFractionToQI" False
       , testProperty "qiToContinuedFraction" False
       ]
     ]

@@ -6,7 +6,7 @@ module Numeric.QuadraticIrrational
   , qiSimplify
   , qiAddR, qiSubR, qiMulR, qiDivR
   , qiNegate, qiRecip, qiAdd, qiSub, qiMul, qiDiv, qiPow
-  , qiFloor, qiToContinuedFraction
+  , qiFloor, continuedFractionToQI, qiToContinuedFraction
   , module Numeric.QuadraticIrrational.CyclicList
   ) where
 
@@ -14,6 +14,7 @@ import Control.Applicative ((<$))
 import Control.Arrow (first)
 import Control.Monad.State
 import Data.List
+import Data.Maybe
 import Data.Ratio
 import qualified Data.Set as Set
 import Math.NumberTheory.Powers.Squares
@@ -180,6 +181,50 @@ qiFloor (unQI' -> ~(a,b,c,d)) =
 
     ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
 
+-- TODO: Likes to generate huge square root terms divided by huge integers
+-- which could be simplified. qiSimplify is too slow to use by default.
+continuedFractionToQI :: (Integer, CycList Integer) -> QI
+continuedFractionToQI (i0_, is_) = qiAddR (go is_) i0_
+  where
+    go (NonCyc as)   = goNonCyc as (qi 0 0 0)
+    go (Cyc as b bs) = goNonCyc as (goCyc (b:bs))
+
+    goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddR (goNonCyc is final) i)
+    goNonCyc []              final = final
+
+    goCyc is = sudoQIRecip (solvePeriodic is)
+
+    -- x = (a x + b) / (c x + d)
+    -- x (c x + d) = a x + b
+    -- c x² + d x = a x + b
+    -- c x² + (d − a) x − b = 0
+    -- Apply quadratic formula, positive solution only.
+    solvePeriodic is =
+      case solvePeriodic' is of
+        ~(a,b,c,d) ->
+          a `seq` b `seq` c `seq` d `seq`
+            qfPos c (d - a) (negate b)
+      where
+        qfPos i j k = qi' (negate j) 1 (j*j - 4*i*k) (2*i)
+
+    -- i + 1/((a x + b) / (c x + d))      =
+    -- i + (c x + d)/(a x + b)            =
+    -- ((a i x + b i + c x + d)/(a x + b) =
+    -- ((a i + c) x + (b i + d))/(a x + b)
+    solvePeriodic' ((pos -> i):is) =
+      case solvePeriodic' is of
+        ~(a,b,c,d) ->
+          a `seq` b `seq` c `seq` d `seq` i `seq`
+            (a*i+c, b*i+d, a, b)
+
+    -- x = (1 x + 0) / (0 x + 1)
+    solvePeriodic' [] = (1,0,0,1)
+
+    sudoQIRecip n =
+      fromMaybe (error "continuedFractionToQI: Divide by zero") (qiRecip n)
+
+    pos = positive "continuedFractionToQI"
+
 -- Convert a 'QI' into a periodic continued fraction representation.
 qiToContinuedFraction :: QI
                       -> (Integer, CycList Integer)
@@ -224,6 +269,9 @@ iSqrtBounds n = (low, high)
 
 nonNegative :: (Num a, Ord a, Show a) => String -> a -> a
 nonNegative name = validate name "non-negative" (>= 0)
+
+positive :: (Num a, Ord a, Show a) => String -> a -> a
+positive name = validate name "positive" (> 0)
 
 nonZero :: (Num a, Eq a, Show a) => String -> a -> a
 nonZero name = validate name "non-zero" (/= 0)
