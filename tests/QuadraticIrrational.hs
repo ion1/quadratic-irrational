@@ -53,10 +53,7 @@ tests =
       ]
 
     , testGroup "Numerical operations"
-      [ testProperty "qiSimplify" $ \n ->
-          approxEq' (qiToFloat n) (qiToFloat (qiSimplify n))
-
-      , testProperty "qiAddR" $ \n x ->
+      [ testProperty "qiAddR" $ \n x ->
           approxEq' (qiToFloat (qiAddR n x)) (qiToFloat n + fromRational x)
 
       , testProperty "qiSubR" $ \n x ->

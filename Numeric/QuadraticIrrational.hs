@@ -4,7 +4,6 @@ module Numeric.QuadraticIrrational
   ( QI, qi, qi', runQI, runQI', unQI, unQI'
   , qiIsZero
   , qiToFloat
-  , qiSimplify
   , qiAddR, qiSubR, qiMulR, qiDivR
   , qiNegate, qiRecip, qiAdd, qiSub, qiMul, qiDiv, qiPow
   , qiFloor, continuedFractionToQI, qiToContinuedFraction
@@ -12,7 +11,6 @@ module Numeric.QuadraticIrrational
   ) where
 
 import Control.Applicative
-import Control.Arrow (first)
 import Control.Monad.State
 import Data.List
 import Data.Maybe
@@ -57,15 +55,40 @@ qi :: Integer  -- ^ a
    -> Integer  -- ^ d
    -> QI
 qi a b (nonNegative "qi" -> c) (nonZero "qi" -> d)
-  | b == 0    = go a 0 0 d
-  | c == 0    = go a 0 0 d
-  | c == 1    = go (a + b) 0 0 d
-  | otherwise = go a b c d
-  where
-    -- Reduce the fractions and construct the QI.
-    go i j k l = QI (i `quot` q) (j `quot` q) k (l `quot` q)
-      where q = signum l * (i `gcd` j `gcd` l)
+  | b == 0    = reduceCons a 0 0 d
+  | c == 0    = reduceCons a 0 0 d
+  | c == 1    = reduceCons (a + b) 0 0 d
+  | otherwise = simplifyReduceCons a b c d
 {-# INLINE qi #-}
+
+-- Simplify @b √c@ before constructing a 'QI'.
+simplifyReduceCons :: Integer -> Integer -> Integer -> Integer -> QI
+simplifyReduceCons a b (nonZero "simplifyReduceCons" -> c) d
+  | c' == 1   = reduceCons (a + b') 0 0 d
+  | otherwise = reduceCons a b' c' d
+  where ~(b', c') = separateSquareFactors b c
+{-# INLINE simplifyReduceCons #-}
+
+-- | Given @b@ and @c@ such that @n = b √c@, return a potentially simplified
+-- @(b, c)@.
+separateSquareFactors :: Integer -> Integer -> (Integer, Integer)
+separateSquareFactors b (nonNegative "separateSquareFactors" -> c) =
+  case foldl' go (1,1) (factorise c) of
+    ~(bMul, c') -> (b*bMul, c')
+  where
+    go :: (Integer, Integer) -> (Integer, Int) -> (Integer, Integer)
+    go ~(i, j) ~(fac, pow) =
+      i `seq` j `seq` fac `seq` pow `seq`
+        if even pow
+          then (i*fac^(pow     `div` 2), j)
+          else (i*fac^((pow-1) `div` 2), j*fac)
+
+-- Reduce the @a@, @b@, @d@ factors before constructing a 'QI'.
+reduceCons :: Integer -> Integer -> Integer -> Integer -> QI
+reduceCons a b c (nonZero "reduceCons" -> d) =
+  QI (a `quot` q) (b `quot` q) c (d `quot` q)
+  where q = signum d * (a `gcd` b `gcd` d)
+{-# INLINE reduceCons #-}
 
 -- | Given @a@, @b@ and @c@ such that @n = a + b √c@, constuct a 'QI'
 -- corresponding to @n@.
@@ -108,37 +131,6 @@ qiToFloat :: Floating a => QI -> a
 qiToFloat (unQI -> ~(a,b,c,d)) =
   (fromInteger a + fromInteger b * sqrt (fromInteger c)) / fromInteger d
 
--- | Change a 'QI' to a potentially simpler form. Will factorize the number
--- inside the square root internally.
-qiSimplify :: QI -> QI
-qiSimplify (unQI -> ~(a,b,c,d))
-  | c == 0    = qi a 0 0 d
-  | otherwise = qi a b' c' d
-  where
-    ~(b', c') = first (b *) (separateSquareFactors c)
-
--- | Given @c@ such that @n = √c@, return @(b, c)@ such that @n = b √c@.
-separateSquareFactors :: Integer -> (Integer, Integer)
-separateSquareFactors = foldl' go (1,1) . factorise
-                      . nonNegative "separateSquareFactors"
-  where
-    go :: (Integer, Integer) -> (Integer, Int) -> (Integer, Integer)
-    go ~(a, b) ~(fac, pow)
-      | even pow  = (a*fac^(pow     `div` 2), b)
-      | otherwise = (a*fac^((pow-1) `div` 2), b*fac)
-
--- Even less efficient than factorization.
-{-
-qiSimplifyAlt :: QI -> QI
-qiSimplifyAlt (unQI -> ~(a_,b_,c_,d_)) = go a_ b_ c_ d_ (integerSquareRoot c_)
-  where
-    go a b c d r
-      | r < 2 = qi a b c d
-      | (c',0) <- c `divMod` (r*r) =
-          go a (b*fromInteger r) c' d (integerSquareRoot c')
-      | otherwise = go a b c d (r-1)
--}
-
 qiAddR :: Real a => QI -> a -> QI
 qiAddR (unQI' -> ~(a,b,c)) (toRational -> x) = qi' (a+x) b c
 
@@ -154,7 +146,6 @@ qiDivR n (toRational . nonZero "qiDiv" -> x) = qiMulR n (recip x)
 qiNegate :: QI -> QI
 qiNegate n = qiMulR n (-1 :: Rational)
 
--- FIXME: qiRecip (qi 2 1 4 1) fails because 2² − 1² 4 = 0. Can this be fixed?
 qiRecip :: QI -> Maybe QI
 qiRecip n@(unQI -> ~(a,b,c,d))
   -- 1/((a + b √c)/d)                       =
@@ -163,7 +154,7 @@ qiRecip n@(unQI -> ~(a,b,c,d))
   -- d (a − b √c) / (a² − b² c)             =
   -- (a d − b d √c) / (a² − b² c)
   | qiIsZero n = Nothing
-  | denom == 0 = error ("qiRecip: Failed for " ++ show n ++ " (FIXME)")
+  | denom == 0 = error ("qiRecip: Failed for " ++ show n)
   | otherwise  = Just (qi (a * d) (negate (b * d)) c denom)
   where denom = (a*a - b*b * c)
 
@@ -226,8 +217,6 @@ qiFloor (unQI -> ~(a,b,c,d)) =
 
     ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
 
--- TODO: Likes to generate huge square root terms divided by huge integers
--- which could be simplified. qiSimplify is too slow to use by default.
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
 continuedFractionToQI (i0_, is_) = qiAddR (go is_) i0_
   where
