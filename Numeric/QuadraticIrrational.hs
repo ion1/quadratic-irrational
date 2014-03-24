@@ -148,20 +148,35 @@ qiToFloat :: Floating a => QI -> a
 qiToFloat (unQI -> ~(a,b,c,d)) =
   (fromInteger a + fromInteger b * sqrt (fromInteger c)) / fromInteger d
 
-qiAddR :: Real a => QI -> a -> QI
-qiAddR (unQI' -> ~(a,b,c)) (toRational -> x) = qi' (a+x) b c
+qiAddR :: QI -> Rational -> QI
+qiAddR n x = qiModify n $ \a b d ->
+  -- n = (a + b √c)/d + xN/xD
+  -- n = ((a + b √c) xD)/(d xD) + (d xN)/(d xD)
+  -- n = ((a xD + d xN) + b xD √c)/(d xD)
+  a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xD + d*xN, b*xD, d*xD)
+  where (xN, xD) = (numerator x, denominator x)
+{-# INLINE qiAddR #-}
 
-qiSubR :: Real a => QI -> a -> QI
-qiSubR n (toRational -> x) = qiAddR n (negate x)
+qiSubR :: QI -> Rational -> QI
+qiSubR n x = qiAddR n (negate x)
+{-# INLINE qiSubR #-}
 
-qiMulR :: Real a => QI -> a -> QI
-qiMulR (unQI' -> ~(a,b,c)) (toRational -> x) = qi' (a*x) (b*x) c
+qiMulR :: QI -> Rational -> QI
+qiMulR n x = qiModify n $ \a b d ->
+  -- n = (a + b √c)/d xN/xD
+  -- n = (a xN + b xN √c)/(d xD)
+  a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xN, b*xN, d*xD)
+  where (xN, xD) = (numerator x, denominator x)
+{-# INLINE qiMulR #-}
 
-qiDivR :: (Show a, Real a) => QI -> a -> QI
-qiDivR n (toRational . nonZero "qiDiv" -> x) = qiMulR n (recip x)
+qiDivR :: QI -> Rational -> QI
+qiDivR n (nonZero "qiDivR" -> x) = qiMulR n (recip x)
+{-# INLINE qiDivR #-}
 
 qiNegate :: QI -> QI
-qiNegate n = qiMulR n (-1 :: Rational)
+qiNegate n = qiModify n $ \a b d ->
+  a `seq` b `seq` d `seq` (negate a, negate b, d)
+{-# INLINE qiNegate #-}
 
 qiRecip :: QI -> Maybe QI
 qiRecip n@(unQI -> ~(a,b,c,d))
@@ -172,17 +187,18 @@ qiRecip n@(unQI -> ~(a,b,c,d))
   -- (a d − b d √c) / (a² − b² c)
   | qiIsZero n = Nothing
   | denom == 0 = error ("qiRecip: Failed for " ++ show n)
-  | otherwise  = Just (qi (a * d) (negate (b * d)) c denom)
+  | otherwise  = Just (qiModify n (\_ _ _ -> (a * d, negate (b * d), denom)))
   where denom = (a*a - b*b * c)
 
 -- | Add two 'QI's if the square root terms are the same or zeros.
 qiAdd :: QI -> QI -> Maybe QI
-qiAdd (unQI' -> ~(a,b,c)) (unQI' -> ~(a',b',c'))
-  | c  == 0   = Just (qi' (a + a') b'       c')
-  | c' == 0   = Just (qi' (a + a') b        c)
-  | c  == c'  = Just (qi' (a + a') (b + b') c)
-                -- a + b √c + a' + b' √c =
-                -- (a + a') + (b + b') √c
+qiAdd n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
+  -- n = (a + b √c)/d + (a' + b' √c')/d'
+  -- n = ((a + b √c) d' + (a' + b' √c') d)/(d d')
+  -- if c = c' then n = ((a d' + a' d) + (b d' + b' d) √c)/(d d')
+  | c  == 0   = Just (qiModify n' (\_ _ _ -> (a*d' + a'*d,        b'*d, d*d')))
+  | c' == 0   = Just (qiModify n  (\_ _ _ -> (a*d' + a'*d, b*d'       , d*d')))
+  | c  == c'  = Just (qiModify n  (\_ _ _ -> (a*d' + a'*d, b*d' + b'*d, d*d')))
   | otherwise = Nothing
 
 -- | Subtract two 'QI's if the square root terms are the same or zeros.
@@ -191,13 +207,15 @@ qiSub n n' = qiAdd n (qiNegate n')
 
 -- | Multiply two 'QI's if the square root terms are the same or zeros.
 qiMul :: QI -> QI -> Maybe QI
-qiMul n@(unQI' -> ~(a,b,c)) n'@(unQI' -> ~(a',b',c'))
-  | c  == 0   = Just (qiMulR n' a)
-  | c' == 0   = Just (qiMulR n  a')
-  | c  == c'  = Just (qi' (a*a' + b*b'*fromInteger c) (a*b' + a'*b) c)
-                -- (a + b √c) (a' + b' √c)           =
-                -- a a' + a b' √c + a' b √c + b b' c =
-                -- (a a' + b b' c) + (a b' + a' b) √c
+qiMul n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
+  -- n = (a + b √c)/d (a' + b' √c')/d'
+  -- n = (a a' + a b' √c' + a' b √c + b b' √c √c')/(d d')
+  -- if c = 0  then n = (a a' + a b' √c')/(d d')
+  -- if c' = 0 then n = (a a' + a' b √c)/(d d')
+  -- if c = c' then n = ((a a' + b b' c) + (a b' + a' b) √c)/(d d')
+  | c  == 0   = Just (qiModify n' (\_ _ _ -> (a*a'         , a*b'       , d*d')))
+  | c' == 0   = Just (qiModify n  (\_ _ _ -> (a*a'         ,        a'*b, d*d')))
+  | c  == c'  = Just (qiModify n  (\_ _ _ -> (a*a' + b*b'*c, a*b' + a'*b, d*d')))
   | otherwise = Nothing
 
 -- | Divide two 'QI's if the square root terms are the same or zeros.
@@ -235,12 +253,13 @@ qiFloor (unQI -> ~(a,b,c,d)) =
     ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
 
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
-continuedFractionToQI (i0_, is_) = qiAddR (go is_) i0_
+continuedFractionToQI (i0_, is_) = qiAddR (go is_) (fromInteger i0_)
   where
     go (NonCyc as)   = goNonCyc as qiZero
     go (Cyc as b bs) = goNonCyc as (goCyc (b:bs))
 
-    goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddR (goNonCyc is final) i)
+    goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddR (goNonCyc is final)
+                                                         (fromInteger i))
     goNonCyc []              final = final
 
     goCyc is = sudoQIRecip (solvePeriodic is)
@@ -307,7 +326,7 @@ qiToContinuedFractionList num =
     -- There is always a first number.
     ~((_,i) : xs) -> (i, xs)
   where
-    go (Just n) = (unQI n, i) : go (qiRecip (qiSubR n i))
+    go (Just n) = (unQI n, i) : go (qiRecip (qiSubR n (fromInteger i)))
       where i = qiFloor n
     go Nothing  = []
 
