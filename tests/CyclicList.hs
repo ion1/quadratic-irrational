@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Main (main) where
+module CyclicList (tests) where
 
 import Control.Applicative
 import qualified Data.Foldable as F
@@ -18,9 +18,6 @@ instance Arbitrary a => Arbitrary (CycList a) where
   shrink (Cyc as b bs) = [ Cyc as' b bs | as' <- shrink as ]
                       ++ [ Cyc as b' bs | b'  <- shrink b  ]
                       ++ [ Cyc as b bs' | bs' <- shrink bs ]
-
-main :: IO ()
-main = defaultMain tests
 
 tests :: TestTree
 tests =

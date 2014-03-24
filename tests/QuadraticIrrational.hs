@@ -2,7 +2,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Main (main) where
+module QuadraticIrrational (tests) where
 
 import Control.Applicative
 import Data.Number.CReal
@@ -24,9 +24,6 @@ instance Arbitrary QI where
     [ qi a  b' c  d  | b' <- shrink b ] ++
     [ qi a  b  c' d  | NonNegative c' <- shrink (NonNegative c) ] ++
     [ qi a  b  c  d' | NonZero     d' <- shrink (NonZero     d) ]
-
-main :: IO ()
-main = defaultMain tests
 
 tests :: TestTree
 tests =
