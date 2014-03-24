@@ -48,6 +48,12 @@ tests =
           runQI' (qi' a b c) $ \a' b' c' ->
             approxEq' (approxQI' a b c) (approxQI' a' b' c')
 
+      , testProperty "qiModify" $ \n a' b' (NonZero d') ->
+          runQI n $ \a b c d ->
+            approxEq' (qiToFloat (qiModify n (\a_ b_ d_ ->
+                                                (a_+a', b_-b', d_*d'))))
+                      (qiToFloat (qi (a+a') (b-b') c (d*d')))
+
       , testProperty "qiToFloat" $ \a b (NonNegative c) (NonZero d) ->
           approxEq' (qiToFloat (qi a b c d)) (approxQI a b c d)
       ]

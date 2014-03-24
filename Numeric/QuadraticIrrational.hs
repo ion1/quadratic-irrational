@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Numeric.QuadraticIrrational
-  ( QI, qi, qi', runQI, runQI', unQI, unQI'
+  ( QI, qi, qi', qiModify, runQI, runQI', unQI, unQI'
   , qiIsZero
   , qiToFloat
   , qiAddR, qiSubR, qiMulR, qiDivR
@@ -103,6 +103,15 @@ qi' a b (nonNegative "qi'" -> c) = n
     (aN, aD) = (numerator a, denominator a)
     (bN, bD) = (numerator b, denominator b)
 {-# INLINE qi' #-}
+
+-- | Given a 'QI' corresponding to @n = (a + b √c)/d@, modify @(a, b, d)@.
+-- Avoids having to simplify @b √c@.
+qiModify :: QI
+         -> (Integer -> Integer -> Integer -> (Integer, Integer, Integer))
+         -> QI
+qiModify (QI a b c d) f = reduceCons a' b' c d'
+  where (a', b', d') = f a b d
+{-# INLINE qiModify #-}
 
 -- | Given @n@ and @f@ such that @n = (a + b √c)/d@, run @f a b c d@.
 runQI :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
