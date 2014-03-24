@@ -147,6 +147,7 @@ qiIsZero (unQI -> ~(a,b,_,_)) = a == 0 && b == 0
 qiToFloat :: Floating a => QI -> a
 qiToFloat (unQI -> ~(a,b,c,d)) =
   (fromInteger a + fromInteger b * sqrt (fromInteger c)) / fromInteger d
+{-# INLINE qiToFloat #-}
 
 qiAddR :: QI -> Rational -> QI
 qiAddR n x = qiModify n $ \a b d ->
