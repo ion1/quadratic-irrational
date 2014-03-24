@@ -150,7 +150,7 @@ qiRecip (unQI -> ~(a,b,c,d)) =
   -- d/(a + b √c)                           =
   -- d (a − b √c) / ((a + b √c) (a − b √c)) =
   -- d (a − b √c) / (a² − b² c)             =
-  -- a d − b d √c / (a² − b² c)
+  -- (a d − b d √c) / (a² − b² c)
   qi (a * d) (negate (b * d)) c denom <$ guard (denom /= 0)
   where denom = (a*a - b*b * c)
 
