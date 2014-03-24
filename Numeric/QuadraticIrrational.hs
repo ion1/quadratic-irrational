@@ -148,14 +148,17 @@ qiDivR n (toRational . nonZero "qiDiv" -> x) = qiMulR n (recip x)
 qiNegate :: QI -> QI
 qiNegate n = qiMulR n (-1 :: Rational)
 
+-- FIXME: qiRecip (qi 2 1 4 1) fails because 2² − 1² 4 = 0. Can this be fixed?
 qiRecip :: QI -> Maybe QI
-qiRecip (unQI -> ~(a,b,c,d)) =
+qiRecip n@(unQI -> ~(a,b,c,d))
   -- 1/((a + b √c)/d)                       =
   -- d/(a + b √c)                           =
   -- d (a − b √c) / ((a + b √c) (a − b √c)) =
   -- d (a − b √c) / (a² − b² c)             =
   -- (a d − b d √c) / (a² − b² c)
-  qi (a * d) (negate (b * d)) c denom <$ guard (denom /= 0)
+  | qiIsZero n = Nothing
+  | denom == 0 = error ("qiRecip: Failed for " ++ show n ++ " (FIXME)")
+  | otherwise  = Just (qi (a * d) (negate (b * d)) c denom)
   where denom = (a*a - b*b * c)
 
 -- | Add two 'QI's if the square root terms are the same or zeros.
