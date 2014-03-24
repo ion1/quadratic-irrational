@@ -36,7 +36,7 @@ library
                , mtl == 2.1.*
                , transformers == 0.3.*
   default-language: Haskell2010
-  ghc-options: -Wall
+  ghc-options: -Wall -O2 -funbox-strict-fields
 
 test-suite test-quadratic-irrational
   type: exitcode-stdio-1.0
@@ -49,7 +49,7 @@ test-suite test-quadratic-irrational
                , tasty == 0.8.*
                , tasty-quickcheck == 0.8.*
   default-language: Haskell2010
-  ghc-options: -Wall
+  ghc-options: -Wall -O2 -funbox-strict-fields
 
 test-suite test-cyclic-list
   type: exitcode-stdio-1.0
@@ -61,4 +61,4 @@ test-suite test-cyclic-list
                , tasty == 0.8.*
                , tasty-quickcheck == 0.8.*
   default-language: Haskell2010
-  ghc-options: -Wall
+  ghc-options: -Wall -O2 -funbox-strict-fields
