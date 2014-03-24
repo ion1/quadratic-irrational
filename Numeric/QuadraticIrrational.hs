@@ -38,10 +38,10 @@ import Text.Read
 import Numeric.QuadraticIrrational.CyclicList
 
 -- | @(a + b √c) / d@
-data QI = QI !Integer  -- ^ a
-             !Integer  -- ^ b
-             !Integer  -- ^ c
-             !Integer  -- ^ d
+data QI = QI !Integer
+             !Integer
+             !Integer
+             !Integer
 
 instance Show QI where
   showsPrec p (QI a b c d) = showParen (p > 10)
@@ -148,27 +148,35 @@ unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
 {-# INLINE unQI' #-}
 
-qiZero, qiOne :: QI
+-- | The constant zero. @qi 0 0 0 1@
+qiZero :: QI
 qiZero = qi 0 0 0 1
-qiOne  = qi 1 0 0 1
 {-# INLINE qiZero #-}
+
+-- | The constant one. @qi 1 0 0 1@
+qiOne :: QI
+qiOne  = qi 1 0 0 1
 {-# INLINE qiOne #-}
 
+-- | Check if the value is zero.
 qiIsZero :: QI -> Bool
 -- If b = 0 then c = 0 and vice versa, guaranteed by the constructor.
 qiIsZero (unQI -> ~(a,b,_,_)) = a == 0 && b == 0
 {-# INLINE qiIsZero #-}
 
+-- | Convert a 'QI' number into a 'Floating' one.
 qiToFloat :: Floating a => QI -> a
 qiToFloat (unQI -> ~(a,b,c,d)) =
   (fromInteger a + fromInteger b * sqrt (fromInteger c)) / fromInteger d
 {-# INLINE qiToFloat #-}
 
+-- | Add an 'Integer' to a 'QI'.
 qiAddI :: QI -> Integer -> QI
 qiAddI n x = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` x `seq` (a + d*x, b, d)
 {-# INLINE qiAddI #-}
 
+-- | Add a 'Rational' to a 'QI'.
 qiAddR :: QI -> Rational -> QI
 qiAddR n x = qiModify n $ \a b d ->
   -- n = (a + b √c)/d + xN/xD
@@ -178,19 +186,23 @@ qiAddR n x = qiModify n $ \a b d ->
   where (xN, xD) = (numerator x, denominator x)
 {-# INLINE qiAddR #-}
 
+-- | Subtract an 'Integer' from a 'QI'.
 qiSubI :: QI -> Integer -> QI
 qiSubI n x = qiAddI n (negate x)
 {-# INLINE qiSubI #-}
 
+-- | Subtract a 'Rational' from a 'QI'.
 qiSubR :: QI -> Rational -> QI
 qiSubR n x = qiAddR n (negate x)
 {-# INLINE qiSubR #-}
 
+-- | Multiply a 'QI' by an 'Integer'.
 qiMulI :: QI -> Integer -> QI
 qiMulI n x = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` x `seq` (a*x, b*x, d)
 {-# INLINE qiMulI #-}
 
+-- | Multiply a 'QI' by a 'Rational'.
 qiMulR :: QI -> Rational -> QI
 qiMulR n x = qiModify n $ \a b d ->
   -- n = (a + b √c)/d xN/xD
@@ -199,20 +211,24 @@ qiMulR n x = qiModify n $ \a b d ->
   where (xN, xD) = (numerator x, denominator x)
 {-# INLINE qiMulR #-}
 
+-- | Divice a 'QI' by an 'Integer'.
 qiDivI :: QI -> Integer -> QI
 qiDivI n (nonZero "qiDivI" -> x) = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` x `seq` (a, b, d*x)
 {-# INLINE qiDivI #-}
 
+-- | Divice a 'QI' by a 'Rational'.
 qiDivR :: QI -> Rational -> QI
 qiDivR n (nonZero "qiDivR" -> x) = qiMulR n (recip x)
 {-# INLINE qiDivR #-}
 
+-- | Negate a 'QI'.
 qiNegate :: QI -> QI
 qiNegate n = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` (negate a, negate b, d)
 {-# INLINE qiNegate #-}
 
+-- | Compute the reciprocal of a 'QI'.
 qiRecip :: QI -> Maybe QI
 qiRecip n@(unQI -> ~(a,b,c,d))
   -- 1/((a + b √c)/d)                       =
@@ -257,6 +273,7 @@ qiMul n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
 qiDiv :: QI -> QI -> Maybe QI
 qiDiv n n' = qiMul n =<< qiRecip n'
 
+-- | Exponentiate a 'QI' to an 'Integer' power.
 qiPow :: QI -> Integer -> QI
 qiPow num (nonNegative "qiPow" -> pow) = go num pow
   where
@@ -276,6 +293,7 @@ qiPow num (nonNegative "qiPow" -> pow) = go num pow
     -- Multiplying a QI with its own power will always succeed.
     sudoQIMul n n' = case qiMul n n' of ~(Just m) -> m
 
+-- | Compute the floor of a 'QI'.
 qiFloor :: QI -> Integer
 qiFloor (unQI -> ~(a,b,c,d)) =
   -- n = (a + b √c)/d
@@ -287,6 +305,7 @@ qiFloor (unQI -> ~(a,b,c,d)) =
 
     ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
 
+-- | Convert a (possibly periodic) continued fraction to a 'QI'.
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
 continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
   where
@@ -329,7 +348,7 @@ continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
 
     pos = positive "continuedFractionToQI"
 
--- Convert a 'QI' into a periodic continued fraction representation.
+-- | Convert a 'QI' into a (possibly periodic) continued fraction.
 qiToContinuedFraction :: QI
                       -> (Integer, CycList Integer)
 qiToContinuedFraction num
