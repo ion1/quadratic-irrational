@@ -2,7 +2,7 @@
 
 module Numeric.QuadraticIrrational
   ( QI, qi, qi', qiModify, runQI, runQI', unQI, unQI'
-  , qiIsZero
+  , qiZero, qiOne, qiIsZero
   , qiToFloat
   , qiAddR, qiSubR, qiMulR, qiDivR
   , qiNegate, qiRecip, qiAdd, qiSub, qiMul, qiDiv, qiPow
@@ -133,6 +133,12 @@ unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
 {-# INLINE unQI' #-}
 
+qiZero, qiOne :: QI
+qiZero = qi 0 0 0 1
+qiOne  = qi 1 0 0 1
+{-# INLINE qiZero #-}
+{-# INLINE qiOne #-}
+
 qiIsZero :: QI -> Bool
 qiIsZero (unQI -> ~(a,b,_,_)) = a == 0 && b == 0
 
@@ -199,7 +205,7 @@ qiDiv n n' = qiMul n =<< qiRecip n'
 qiPow :: QI -> Integer -> QI
 qiPow num (nonNegative "qiPow" -> pow) = go num pow
   where
-    go _ 0 = qi 1 0 0 1
+    go _ 0 = qiOne
     go n 1 = n
     go n p
       | even p    = go  (sudoQIMul n n) (p     `div` 2)
@@ -229,7 +235,7 @@ qiFloor (unQI -> ~(a,b,c,d)) =
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
 continuedFractionToQI (i0_, is_) = qiAddR (go is_) i0_
   where
-    go (NonCyc as)   = goNonCyc as (qi 0 0 0 1)
+    go (NonCyc as)   = goNonCyc as qiZero
     go (Cyc as b bs) = goNonCyc as (goCyc (b:bs))
 
     goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddR (goNonCyc is final) i)
