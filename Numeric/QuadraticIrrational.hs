@@ -2,6 +2,7 @@
 
 module Numeric.QuadraticIrrational
   ( QI, qi, qi', runQI, runQI', unQI, unQI'
+  , qiIsZero
   , qiToFloat
   , qiSimplify
   , qiAddR, qiSubR, qiMulR, qiDivR
@@ -93,6 +94,9 @@ unQI n = runQI n (,,,)
 -- | Given @n@ such that @n = a + b √c@, return @(a, b, c)@.
 unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
+
+qiIsZero :: QI -> Bool
+qiIsZero (unQI -> ~(a,b,_,_)) = a == 0 && b == 0
 
 qiToFloat :: Floating a => QI -> a
 qiToFloat (unQI -> ~(a,b,c,d)) =
