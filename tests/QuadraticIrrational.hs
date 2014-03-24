@@ -121,8 +121,13 @@ tests =
           qiFloor n === floor (qiToFloat n :: RefFloat)
 
       , testProperty "qiToContinuedFraction/continuedFractionToQI" $ \n ->
-          approxEq' (qiToFloat n)
-                    (qiToFloat (continuedFractionToQI (qiToContinuedFraction n)))
+          let cf  = qiToContinuedFraction n
+              len = case cf of
+                      (_, NonCyc _)   -> 0
+                      (_, Cyc _ _ xs) -> length xs
+          -- Limit the length of the periodic part for speed.
+          in (len <= 100) ==>
+               approxEq' (qiToFloat n) (qiToFloat (continuedFractionToQI cf))
       ]
     ]
 
