@@ -30,6 +30,7 @@ source-repository head
 library
   exposed-modules: Numeric.QuadraticIrrational
                  , Numeric.QuadraticIrrational.CyclicList
+  hs-source-dirs: src
   build-depends: base >= 4.6 && < 4.8
                , arithmoi == 0.4.*
                , containers == 0.5.*
