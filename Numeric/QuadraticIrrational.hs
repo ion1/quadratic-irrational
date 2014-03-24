@@ -10,7 +10,7 @@ module Numeric.QuadraticIrrational
   , module Numeric.QuadraticIrrational.CyclicList
   ) where
 
-import Control.Applicative ((<$))
+import Control.Applicative
 import Control.Arrow (first)
 import Control.Monad.State
 import Data.List
@@ -19,6 +19,7 @@ import Data.Ratio
 import qualified Data.Set as Set
 import Math.NumberTheory.Powers.Squares
 import Math.NumberTheory.Primes.Factorisation
+import Text.Read
 
 import Numeric.QuadraticIrrational.CyclicList
 
@@ -27,7 +28,23 @@ data QI = QI !Integer  -- ^ a
              !Integer  -- ^ b
              !Integer  -- ^ c
              !Integer  -- ^ d
-  deriving (Show, Read)
+
+instance Show QI where
+  showsPrec p (QI a b c d) = showParen (p > 10)
+                           $ showString "qi " . showsPrec 11 a
+                           . showChar   ' '   . showsPrec 11 b
+                           . showChar   ' '   . showsPrec 11 c
+                           . showChar   ' '   . showsPrec 11 d
+
+instance Read QI where
+  readPrec = parens rQI
+    where
+      rQI = prec 10 $ do
+        Ident "qi" <- lexP
+        qi <$> step readPrec <*> step readPrec <*> step readPrec
+           <*> step readPrec
+
+  readListPrec = readListPrecDefault
 
 type QITuple = (Integer, Integer, Integer, Integer)
 
