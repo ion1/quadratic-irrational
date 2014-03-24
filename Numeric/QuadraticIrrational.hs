@@ -140,7 +140,9 @@ qiOne  = qi 1 0 0 1
 {-# INLINE qiOne #-}
 
 qiIsZero :: QI -> Bool
+-- If b = 0 then c = 0 and vice versa, guaranteed by the constructor.
 qiIsZero (unQI -> ~(a,b,_,_)) = a == 0 && b == 0
+{-# INLINE qiIsZero #-}
 
 qiToFloat :: Floating a => QI -> a
 qiToFloat (unQI -> ~(a,b,c,d)) =
