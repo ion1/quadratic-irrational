@@ -59,7 +59,20 @@ tests =
       ]
 
     , testGroup "Numerical operations"
-      [ testProperty "qiAddR" $ \n x ->
+      [ testProperty "qiAddI" $ \n x ->
+          approxEq' (qiToFloat (qiAddI n x)) (qiToFloat n + fromInteger x)
+
+      , testProperty "qiSubI" $ \n x ->
+          approxEq' (qiToFloat (qiSubI n x)) (qiToFloat n - fromInteger x)
+
+      , testProperty "qiMulI" $ \n x ->
+          approxEq' (qiToFloat (qiMulI n x)) (qiToFloat n * fromInteger x)
+
+      , testProperty "qiDivI" $ \n x ->
+          x /= 0 ==>
+            approxEq' (qiToFloat (qiDivI n x)) (qiToFloat n / fromInteger x)
+
+      , testProperty "qiAddR" $ \n x ->
           approxEq' (qiToFloat (qiAddR n x)) (qiToFloat n + fromRational x)
 
       , testProperty "qiSubR" $ \n x ->

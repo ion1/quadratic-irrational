@@ -4,6 +4,7 @@ module Numeric.QuadraticIrrational
   ( QI, qi, qi', qiModify, runQI, runQI', unQI, unQI'
   , qiZero, qiOne, qiIsZero
   , qiToFloat
+  , qiAddI, qiSubI, qiMulI, qiDivI
   , qiAddR, qiSubR, qiMulR, qiDivR
   , qiNegate, qiRecip, qiAdd, qiSub, qiMul, qiDiv, qiPow
   , qiFloor, continuedFractionToQI, qiToContinuedFraction
@@ -149,6 +150,11 @@ qiToFloat (unQI -> ~(a,b,c,d)) =
   (fromInteger a + fromInteger b * sqrt (fromInteger c)) / fromInteger d
 {-# INLINE qiToFloat #-}
 
+qiAddI :: QI -> Integer -> QI
+qiAddI n x = qiModify n $ \a b d ->
+  a `seq` b `seq` d `seq` x `seq` (a + d*x, b, d)
+{-# INLINE qiAddI #-}
+
 qiAddR :: QI -> Rational -> QI
 qiAddR n x = qiModify n $ \a b d ->
   -- n = (a + b √c)/d + xN/xD
@@ -158,9 +164,18 @@ qiAddR n x = qiModify n $ \a b d ->
   where (xN, xD) = (numerator x, denominator x)
 {-# INLINE qiAddR #-}
 
+qiSubI :: QI -> Integer -> QI
+qiSubI n x = qiAddI n (negate x)
+{-# INLINE qiSubI #-}
+
 qiSubR :: QI -> Rational -> QI
 qiSubR n x = qiAddR n (negate x)
 {-# INLINE qiSubR #-}
+
+qiMulI :: QI -> Integer -> QI
+qiMulI n x = qiModify n $ \a b d ->
+  a `seq` b `seq` d `seq` x `seq` (a*x, b*x, d)
+{-# INLINE qiMulI #-}
 
 qiMulR :: QI -> Rational -> QI
 qiMulR n x = qiModify n $ \a b d ->
@@ -169,6 +184,11 @@ qiMulR n x = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xN, b*xN, d*xD)
   where (xN, xD) = (numerator x, denominator x)
 {-# INLINE qiMulR #-}
+
+qiDivI :: QI -> Integer -> QI
+qiDivI n (nonZero "qiDivI" -> x) = qiModify n $ \a b d ->
+  a `seq` b `seq` d `seq` x `seq` (a, b, d*x)
+{-# INLINE qiDivI #-}
 
 qiDivR :: QI -> Rational -> QI
 qiDivR n (nonZero "qiDivR" -> x) = qiMulR n (recip x)
@@ -254,13 +274,12 @@ qiFloor (unQI -> ~(a,b,c,d)) =
     ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
 
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
-continuedFractionToQI (i0_, is_) = qiAddR (go is_) (fromInteger i0_)
+continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
   where
     go (NonCyc as)   = goNonCyc as qiZero
     go (Cyc as b bs) = goNonCyc as (goCyc (b:bs))
 
-    goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddR (goNonCyc is final)
-                                                         (fromInteger i))
+    goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddI (goNonCyc is final) i)
     goNonCyc []              final = final
 
     goCyc is = sudoQIRecip (solvePeriodic is)
@@ -327,7 +346,7 @@ qiToContinuedFractionList num =
     -- There is always a first number.
     ~((_,i) : xs) -> (i, xs)
   where
-    go (Just n) = (unQI n, i) : go (qiRecip (qiSubR n (fromInteger i)))
+    go (Just n) = (unQI n, i) : go (qiRecip (qiSubI n i))
       where i = qiFloor n
     go Nothing  = []
 
