@@ -65,6 +65,7 @@ qi a b (nonNegative "qi" -> c) (nonZero "qi" -> d)
     -- Reduce the fractions and construct the QI.
     go i j k l = QI (i `quot` q) (j `quot` q) k (l `quot` q)
       where q = signum l * (i `gcd` j `gcd` l)
+{-# INLINE qi #-}
 
 -- | Given @a@, @b@ and @c@ such that @n = a + b √c@, constuct a 'QI'
 -- corresponding to @n@.
@@ -78,22 +79,27 @@ qi' a b (nonNegative "qi'" -> c) = n
     n = qi (aN*bD) (bN*aD) c (aD*bD)
     (aN, aD) = (numerator a, denominator a)
     (bN, bD) = (numerator b, denominator b)
+{-# INLINE qi' #-}
 
 -- | Given @n@ and @f@ such that @n = (a + b √c)/d@, run @f a b c d@.
 runQI :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
 runQI (QI a b c d) f = f a b c d
+{-# INLINE runQI #-}
 
 -- | Given @n@ and @f@ such that @n = a + b √c@, run @f a b c@.
 runQI' :: QI -> (Rational -> Rational -> Integer -> a) -> a
 runQI' (QI a b c d) f = f (a % d) (b % d) c
+{-# INLINE runQI' #-}
 
 -- | Given @n@ such that @n = (a + b √c)/d@, return @(a, b, c, d)@.
 unQI :: QI -> (Integer, Integer, Integer, Integer)
 unQI n = runQI n (,,,)
+{-# INLINE unQI #-}
 
 -- | Given @n@ such that @n = a + b √c@, return @(a, b, c)@.
 unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
+{-# INLINE unQI' #-}
 
 qiIsZero :: QI -> Bool
 qiIsZero (unQI -> ~(a,b,_,_)) = a == 0 && b == 0
@@ -308,12 +314,15 @@ iSqrtBounds n = (low, high)
 
 nonNegative :: (Num a, Ord a, Show a) => String -> a -> a
 nonNegative name = validate name "non-negative" (>= 0)
+{-# INLINE nonNegative #-}
 
 positive :: (Num a, Ord a, Show a) => String -> a -> a
 positive name = validate name "positive" (> 0)
+{-# INLINE positive #-}
 
 nonZero :: (Num a, Eq a, Show a) => String -> a -> a
 nonZero name = validate name "non-zero" (/= 0)
+{-# INLINE nonZero #-}
 
 validate :: Show a => String -> String -> (a -> Bool) -> a -> a
 validate name expected f a
@@ -321,3 +330,4 @@ validate name expected f a
   | otherwise =
       error ("Numeric.QuadraticIrrational." ++ name ++ ": Got " ++ show a
               ++ ", expected " ++ expected)
+{-# INLINE validate #-}
