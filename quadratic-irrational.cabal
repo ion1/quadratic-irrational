@@ -1,7 +1,31 @@
 name: quadratic-irrational
+category: Math, Algorithms, Data
 version: 0.0.1
+license: MIT
+license-file: LICENSE
+author: Johan Kiviniemi <devel@johan.kiviniemi.name>
+maintainer: Johan Kiviniemi <devel@johan.kiviniemi.name>
+stability: provisional
+homepage: https://github.com/ion1/quadratic-irrational
+bug-reports: https://github.com/ion1/quadratic-irrational/issues
+copyright: Copyright © 2014 Johan Kiviniemi
+synopsis: An implementation of quadratic irrationals
+description:
+  An implementation of
+  <http://en.wikipedia.org/wiki/Quadratic_irrational quadratic irrationals>
+  with support for conversion from and to
+  <http://en.wikipedia.org/wiki/Periodic_continued_fraction periodic continued fractions>.
+tested-with: GHC == 7.6.3
+
 build-type: Simple
 cabal-version: >= 1.10
+extra-source-files:
+  .gitignore
+  README.md
+
+source-repository head
+  type: git
+  location: https://github.com/ion1/quadratic-irrational.git
 
 library
   exposed-modules: Numeric.QuadraticIrrational

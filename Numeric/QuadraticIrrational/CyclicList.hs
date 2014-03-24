@@ -1,3 +1,12 @@
+-- |
+-- Module      : Numeric.QuadraticIrrational.CyclicList
+-- Description : A container for a possibly cyclic list.
+-- Copyright   : © 2014 Johan Kiviniemi
+-- License     : MIT
+-- Maintainer  : Johan Kiviniemi <devel@johan.kiviniemi.name>
+-- Stability   : provisional
+-- Portability : portable
+
 module Numeric.QuadraticIrrational.CyclicList
   ( CycList (..)
   ) where

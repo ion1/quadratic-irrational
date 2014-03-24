@@ -1,5 +1,19 @@
 {-# LANGUAGE ViewPatterns #-}
 
+-- |
+-- Module      : Numeric.QuadraticIrrational
+-- Description : An implementation of quadratic irrationals
+-- Copyright   : © 2014 Johan Kiviniemi
+-- License     : MIT
+-- Maintainer  : Johan Kiviniemi <devel@johan.kiviniemi.name>
+-- Stability   : provisional
+-- Portability : ViewPatterns
+--
+-- An implementation of
+-- <http://en.wikipedia.org/wiki/Quadratic_irrational quadratic irrationals>
+-- with support for conversion from and to
+-- <http://en.wikipedia.org/wiki/Periodic_continued_fraction periodic continued fractions>.
+
 module Numeric.QuadraticIrrational
   ( QI, qi, qi', qiModify, runQI, runQI', unQI, unQI'
   , qiZero, qiOne, qiIsZero
