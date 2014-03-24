@@ -42,6 +42,7 @@ data QI = QI !Integer
              !Integer
              !Integer
              !Integer
+  deriving (Eq)
 
 instance Show QI where
   showsPrec p (QI a b c d) = showParen (p > 10)
