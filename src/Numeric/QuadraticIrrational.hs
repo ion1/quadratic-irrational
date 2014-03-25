@@ -65,6 +65,32 @@ type QITuple = (Integer, Integer, Integer, Integer)
 
 -- | Given @a@, @b@, @c@ and @d@ such that @n = (a + b √c)/d@, constuct a 'QI'
 -- corresponding to @n@.
+--
+-- >>> qi 3 4 5 6
+-- qi 3 4 5 6
+--
+-- The fractions are reduced:
+--
+-- >>> qi 30 40 5 60
+-- qi 3 4 5 6
+--
+-- If @b = 0@ then @c@ is zeroed and vice versa:
+--
+-- >>> qi 3 0 42 1
+-- qi 3 0 0 1
+--
+-- >>> qi 3 42 0 1
+-- qi 3 0 0 1
+--
+-- The @b √c@ term is simplified:
+--
+-- >>> qi 0 1 (5*5*6) 1
+-- qi 0 5 6 1
+--
+-- If @c = 1@ (after simplification) then @b@ is moved to @a@:
+--
+-- >>> qi 1 5 (2*2) 1
+-- qi 11 0 0 1
 qi :: Integer  -- ^ a
    -> Integer  -- ^ b
    -> Integer  -- ^ c
@@ -108,6 +134,9 @@ reduceCons a b c (nonZero "reduceCons" -> d) =
 
 -- | Given @a@, @b@ and @c@ such that @n = a + b √c@, constuct a 'QI'
 -- corresponding to @n@.
+--
+-- >>> qi' 0.5 0.7 2
+-- qi 5 7 2 10
 qi' :: Rational  -- ^ a
     -> Rational  -- ^ b
     -> Integer   -- ^ c
@@ -122,6 +151,9 @@ qi' a b (nonNegative "qi'" -> c) = n
 
 -- | Given a 'QI' corresponding to @n = (a + b √c)/d@, modify @(a, b, d)@.
 -- Avoids having to simplify @b √c@.
+--
+-- >>> qiModify (qi 3 4 5 6) (\a b d -> (a+10, b+10, d+10))
+-- qi 13 14 5 16
 qiModify :: QI
          -> (Integer -> Integer -> Integer -> (Integer, Integer, Integer))
          -> QI
@@ -130,54 +162,84 @@ qiModify (QI a b c d) f = reduceCons a' b' c d'
 {-# INLINE qiModify #-}
 
 -- | Given @n@ and @f@ such that @n = (a + b √c)/d@, run @f a b c d@.
+--
+-- >>> runQI (qi 3 4 5 6) (\a b c d -> (a,b,c,d))
+-- (3,4,5,6)
 runQI :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
 runQI (QI a b c d) f = f a b c d
 {-# INLINE runQI #-}
 
 -- | Given @n@ and @f@ such that @n = a + b √c@, run @f a b c@.
+--
+-- >>> runQI' (qi' 0.5 0.7 2) (\a b c -> (a, b, c))
+-- (1 % 2,7 % 10,2)
 runQI' :: QI -> (Rational -> Rational -> Integer -> a) -> a
 runQI' (QI a b c d) f = f (a % d) (b % d) c
 {-# INLINE runQI' #-}
 
 -- | Given @n@ such that @n = (a + b √c)/d@, return @(a, b, c, d)@.
+--
+-- >>> unQI (qi 3 4 5 6)
+-- (3,4,5,6)
 unQI :: QI -> (Integer, Integer, Integer, Integer)
 unQI n = runQI n (,,,)
 {-# INLINE unQI #-}
 
 -- | Given @n@ such that @n = a + b √c@, return @(a, b, c)@.
+--
+-- >>> unQI' (qi' 0.5 0.7 2)
+-- (1 % 2,7 % 10,2)
 unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
 {-# INLINE unQI' #-}
 
--- | The constant zero. @qi 0 0 0 1@
+-- | The constant zero.
+--
+-- >>> qiZero
+-- qi 0 0 0 1
 qiZero :: QI
 qiZero = qi 0 0 0 1
 {-# INLINE qiZero #-}
 
--- | The constant one. @qi 1 0 0 1@
+-- | The constant one.
+--
+-- >>> qiOne
+-- qi 1 0 0 1
 qiOne :: QI
 qiOne  = qi 1 0 0 1
 {-# INLINE qiOne #-}
 
 -- | Check if the value is zero.
+--
+-- >>> map qiIsZero [qiZero, qiOne, qiSubR (qi 7 0 0 2) 3.5]
+-- [True,False,True]
 qiIsZero :: QI -> Bool
 -- If b = 0 then c = 0 and vice versa, guaranteed by the constructor.
 qiIsZero (unQI -> ~(a,b,_,_)) = a == 0 && b == 0
 {-# INLINE qiIsZero #-}
 
 -- | Convert a 'QI' number into a 'Floating' one.
+--
+-- >>> qiToFloat (qi 3 4 5 6) == ((3 + 4 * sqrt 5)/6 :: Double)
+-- True
 qiToFloat :: Floating a => QI -> a
 qiToFloat (unQI -> ~(a,b,c,d)) =
   (fromInteger a + fromInteger b * sqrt (fromInteger c)) / fromInteger d
 {-# INLINE qiToFloat #-}
 
 -- | Add an 'Integer' to a 'QI'.
+--
+-- >>> qi 3 4 5 6 `qiAddI` 1
+-- qi 9 4 5 6
 qiAddI :: QI -> Integer -> QI
 qiAddI n x = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` x `seq` (a + d*x, b, d)
 {-# INLINE qiAddI #-}
 
 -- | Add a 'Rational' to a 'QI'.
+--
+-- >>> qi 3 4 5 6 `qiAddR` 1.2
+-- qi 51 20 5 30
 qiAddR :: QI -> Rational -> QI
 qiAddR n x = qiModify n $ \a b d ->
   -- n = (a + b √c)/d + xN/xD
@@ -188,22 +250,34 @@ qiAddR n x = qiModify n $ \a b d ->
 {-# INLINE qiAddR #-}
 
 -- | Subtract an 'Integer' from a 'QI'.
+--
+-- >>> qi 3 4 5 6 `qiSubI` 1
+-- qi (-3) 4 5 6
 qiSubI :: QI -> Integer -> QI
 qiSubI n x = qiAddI n (negate x)
 {-# INLINE qiSubI #-}
 
 -- | Subtract a 'Rational' from a 'QI'.
+--
+-- >>> qi 3 4 5 6 `qiSubR` 1.2
+-- qi (-21) 20 5 30
 qiSubR :: QI -> Rational -> QI
 qiSubR n x = qiAddR n (negate x)
 {-# INLINE qiSubR #-}
 
 -- | Multiply a 'QI' by an 'Integer'.
+--
+-- >>> qi 3 4 5 6 `qiMulI` 2
+-- qi 3 4 5 3
 qiMulI :: QI -> Integer -> QI
 qiMulI n x = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` x `seq` (a*x, b*x, d)
 {-# INLINE qiMulI #-}
 
 -- | Multiply a 'QI' by a 'Rational'.
+--
+-- >>> qi 3 4 5 6 `qiMulR` 0.5
+-- qi 3 4 5 12
 qiMulR :: QI -> Rational -> QI
 qiMulR n x = qiModify n $ \a b d ->
   -- n = (a + b √c)/d xN/xD
@@ -213,23 +287,41 @@ qiMulR n x = qiModify n $ \a b d ->
 {-# INLINE qiMulR #-}
 
 -- | Divice a 'QI' by an 'Integer'.
+--
+-- >>> qi 3 4 5 6 `qiDivI` 2
+-- qi 3 4 5 12
 qiDivI :: QI -> Integer -> QI
 qiDivI n (nonZero "qiDivI" -> x) = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` x `seq` (a, b, d*x)
 {-# INLINE qiDivI #-}
 
 -- | Divice a 'QI' by a 'Rational'.
+--
+-- >>> qi 3 4 5 6 `qiDivR` 0.5
+-- qi 3 4 5 3
 qiDivR :: QI -> Rational -> QI
 qiDivR n (nonZero "qiDivR" -> x) = qiMulR n (recip x)
 {-# INLINE qiDivR #-}
 
 -- | Negate a 'QI'.
+--
+-- >>> qiNegate (qi 3 4 5 6)
+-- qi (-3) (-4) 5 6
 qiNegate :: QI -> QI
 qiNegate n = qiModify n $ \a b d ->
   a `seq` b `seq` d `seq` (negate a, negate b, d)
 {-# INLINE qiNegate #-}
 
 -- | Compute the reciprocal of a 'QI'.
+--
+-- >>> qiRecip (qi 5 0 0 2)
+-- Just (qi 2 0 0 5)
+--
+-- >>> qiRecip (qi 0 1 5 2)
+-- Just (qi 0 2 5 5)
+--
+-- >>> qiRecip qiZero
+-- Nothing
 qiRecip :: QI -> Maybe QI
 qiRecip n@(unQI -> ~(a,b,c,d))
   -- 1/((a + b √c)/d)                       =
@@ -243,6 +335,15 @@ qiRecip n@(unQI -> ~(a,b,c,d))
   where denom = (a*a - b*b * c)
 
 -- | Add two 'QI's if the square root terms are the same or zeros.
+--
+-- >>> qi 3 4 5 6 `qiAdd` qiOne
+-- Just (qi 9 4 5 6)
+--
+-- >>> qi 3 4 5 6 `qiAdd` qi 3 4 5 6
+-- Just (qi 3 4 5 3)
+--
+-- >>> qi 0 1 5 1 `qiAdd` qi 0 1 6 1
+-- Nothing
 qiAdd :: QI -> QI -> Maybe QI
 qiAdd n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
   -- n = (a + b √c)/d + (a' + b' √c')/d'
@@ -254,10 +355,31 @@ qiAdd n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
   | otherwise = Nothing
 
 -- | Subtract two 'QI's if the square root terms are the same or zeros.
+--
+-- >>> qi 3 4 5 6 `qiSub` qiOne
+-- Just (qi (-3) 4 5 6)
+--
+-- >>> qi 3 4 5 6 `qiSub` qi 3 4 5 6
+-- Just (qi 0 0 0 1)
+--
+-- >>> qi 0 1 5 1 `qiSub` qi 0 1 6 1
+-- Nothing
 qiSub :: QI -> QI -> Maybe QI
 qiSub n n' = qiAdd n (qiNegate n')
 
 -- | Multiply two 'QI's if the square root terms are the same or zeros.
+--
+-- >>> qi 3 4 5 6 `qiMul` qiZero
+-- Just (qi 0 0 0 1)
+--
+-- >>> qi 3 4 5 6 `qiMul` qiOne
+-- Just (qi 3 4 5 6)
+--
+-- >>> qi 3 4 5 6 `qiMul` qi 3 4 5 6
+-- Just (qi 89 24 5 36)
+--
+-- >>> qi 0 1 5 1 `qiMul` qi 0 1 6 1
+-- Nothing
 qiMul :: QI -> QI -> Maybe QI
 qiMul n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
   -- n = (a + b √c)/d (a' + b' √c')/d'
@@ -271,10 +393,34 @@ qiMul n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
   | otherwise = Nothing
 
 -- | Divide two 'QI's if the square root terms are the same or zeros.
+--
+-- >>> qi 3 4 5 6 `qiDiv` qiZero
+-- Nothing
+--
+-- >>> qi 3 4 5 6 `qiDiv` qiOne
+-- Just (qi 3 4 5 6)
+--
+-- >>> qi 3 4 5 6 `qiDiv` qi 3 4 5 6
+-- Just (qi 1 0 0 1)
+--
+-- >>> qi 3 4 5 6 `qiDiv` qi 0 1 5 1
+-- Just (qi 20 3 5 30)
+--
+-- >>> qi 0 1 5 1 `qiDiv` qi 0 1 6 1
+-- Nothing
 qiDiv :: QI -> QI -> Maybe QI
 qiDiv n n' = qiMul n =<< qiRecip n'
 
 -- | Exponentiate a 'QI' to an 'Integer' power.
+--
+-- >>> qi 3 4 5 6 `qiPow` 0
+-- qi 1 0 0 1
+--
+-- >>> qi 3 4 5 6 `qiPow` 1
+-- qi 3 4 5 6
+--
+-- >>> qi 3 4 5 6 `qiPow` 2
+-- qi 89 24 5 36
 qiPow :: QI -> Integer -> QI
 qiPow num (nonNegative "qiPow" -> pow) = go num pow
   where
@@ -295,6 +441,15 @@ qiPow num (nonNegative "qiPow" -> pow) = go num pow
     sudoQIMul n n' = case qiMul n n' of ~(Just m) -> m
 
 -- | Compute the floor of a 'QI'.
+--
+-- >>> qiFloor (qi 10 0 0 2)
+-- 5
+--
+-- >>> qiFloor (qi 10 2 2 2)
+-- 6
+--
+-- >>> qiFloor (qi 10 2 5 2)
+-- 7
 qiFloor :: QI -> Integer
 qiFloor (unQI -> ~(a,b,c,d)) =
   -- n = (a + b √c)/d
@@ -307,6 +462,19 @@ qiFloor (unQI -> ~(a,b,c,d)) =
     ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
 
 -- | Convert a (possibly periodic) continued fraction to a 'QI'.
+--
+-- @[2; 2] = 2 + 1\/2 = 5\/2@.
+--
+-- >>> continuedFractionToQI (2,NonCyc [2])
+-- qi 5 0 0 2
+--
+-- @[2; 1, 1, 1, 4, 1, 1, 1, 4, …] = √7@.
+--
+-- >>> continuedFractionToQI (2,Cyc [] 1 [1,1,4])
+-- qi 0 1 7 1
+--
+-- >>> continuedFractionToQI (0,Cyc [83,78,65,75,69] 32 [66,65,68,71,69,82])
+-- qi 987601513930253257378987883 1 14116473325908285531353005 81983584717737887813195873886
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
 continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
   where
@@ -350,6 +518,19 @@ continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
     pos = positive "continuedFractionToQI"
 
 -- | Convert a 'QI' into a (possibly periodic) continued fraction.
+--
+-- @5\/2 = 2 + 1\/2 = [2; 2]@.
+--
+-- >>> qiToContinuedFraction (qi 5 0 0 2)
+-- (2,NonCyc [2])
+--
+-- @√7 = [2; 1, 1, 1, 4, 1, 1, 1, 4, …]@.
+--
+-- >>> qiToContinuedFraction (qi 0 1 7 1)
+-- (2,Cyc [] 1 [1,1,4])
+--
+-- >>> qiToContinuedFraction (qi 987601513930253257378987883 1 14116473325908285531353005 81983584717737887813195873886)
+-- (0,Cyc [83,78,65,75,69] 32 [66,65,68,71,69,82])
 qiToContinuedFraction :: QI
                       -> (Integer, CycList Integer)
 qiToContinuedFraction num

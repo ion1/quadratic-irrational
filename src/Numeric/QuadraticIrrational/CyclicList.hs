@@ -14,6 +14,16 @@ module Numeric.QuadraticIrrational.CyclicList
 import Data.Foldable
 import Data.Monoid
 
+-- $setup
+-- import Data.Foldable (toList)
+
+-- | A container for a possibly cyclic list.
+--
+-- >>> toList (NonCyc "hello")
+-- "hello"
+--
+-- >>> take 70 (toList (Cyc "prefix " 'c' "ycle"))
+-- "prefix cyclecyclecyclecyclecyclecyclecyclecyclecyclecyclecyclecyclecyc"
 data CycList a = NonCyc [a]  -- ^ A non-cyclic list.
                | Cyc [a] a [a]
                  -- ^ A non-cyclic list followed by the head of a cyclic list
