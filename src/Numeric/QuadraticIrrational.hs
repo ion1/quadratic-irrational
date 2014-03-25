@@ -15,14 +15,19 @@
 -- <http://en.wikipedia.org/wiki/Periodic_continued_fraction periodic continued fractions>.
 
 module Numeric.QuadraticIrrational
-  ( QI, qi, qi', runQI, runQI', unQI, unQI'
-  , qiModify
-  , qiZero, qiOne, qiIsZero
+  ( -- * Constructors and deconstructors
+    QI, qi, qi', runQI, runQI', unQI, unQI'
+  , -- * Lenses
+    _qi, _qi', _qiABD, _qiA, _qiB, _qiC, _qiD
+  , -- * Numerical operations
+    qiZero, qiOne, qiIsZero
   , qiToFloat
   , qiAddI, qiSubI, qiMulI, qiDivI
   , qiAddR, qiSubR, qiMulR, qiDivR
   , qiNegate, qiRecip, qiAdd, qiSub, qiMul, qiDiv, qiPow
-  , qiFloor, continuedFractionToQI, qiToContinuedFraction
+  , qiFloor
+  , -- * Continued fractions
+    continuedFractionToQI, qiToContinuedFraction
   , module Numeric.QuadraticIrrational.CyclicList
   ) where
 
@@ -37,6 +42,7 @@ import Math.NumberTheory.Primes.Factorisation
 import Text.Read
 
 import Numeric.QuadraticIrrational.CyclicList
+import Numeric.QuadraticIrrational.Internal.Lens
 
 -- | @(a + b √c) / d@
 data QI = QI !Integer
@@ -192,17 +198,88 @@ unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
 {-# INLINE unQI' #-}
 
--- | Given a 'QI' corresponding to @n = (a + b √c)/d@, modify @(a, b, d)@.
--- Avoids having to simplify @b √c@.
+-- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @(a, b, c, d)@.
 --
--- >>> qiModify (qi 3 4 5 6) (\a b d -> (a+10, b+10, d+10))
+-- >>> view _qi (qi 3 4 5 6)
+-- (3,4,5,6)
+--
+-- >>> over _qi (\(a,b,c,d) -> (a+10, b+10, c+10, d+10)) (qi 3 4 5 6)
+-- qi 13 14 15 16
+_qi :: Lens' QI (Integer, Integer, Integer, Integer)
+_qi f n = (\ ~(a',b',c',d') -> qi a' b' c' d') <$> f (unQI n)
+{-# INLINE _qi #-}
+
+-- | Given a 'QI' corresponding to @n = a + b √c@, access @(a, b, c)@.
+--
+-- >>> view _qi' (qi' 0.5 0.7 2)
+-- (1 % 2,7 % 10,2)
+--
+-- >>> over _qi' (\(a,b,c) -> (a/5, b/6, c*3)) (qi 3 4 5 6)
+-- qi 9 10 15 90
+_qi' :: Lens' QI (Rational, Rational, Integer)
+_qi' f n = (\ ~(a',b',c') -> qi' a' b' c') <$> f (unQI' n)
+{-# INLINE _qi' #-}
+
+-- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @(a, b, d)@.
+-- Avoids having to simplify @b √c@ upon reconstruction.
+--
+-- >>> view _qiABD (qi 3 4 5 6)
+-- (3,4,6)
+--
+-- >>> over _qiABD (\(a,b,d) -> (a+10, b+10, d+10)) (qi 3 4 5 6)
 -- qi 13 14 5 16
-qiModify :: QI
-         -> (Integer -> Integer -> Integer -> (Integer, Integer, Integer))
-         -> QI
-qiModify (unQI -> ~(a,b,c,d)) f = qiNoSimpl a' b' c d'
-  where (a', b', d') = f a b d
-{-# INLINE qiModify #-}
+_qiABD :: Lens' QI (Integer, Integer, Integer)
+_qiABD f (unQI -> ~(a,b,c,d)) =
+  (\ ~(a',b',d') -> qiNoSimpl a' b' c d') <$> f (a,b,d)
+{-# INLINE _qiABD #-}
+
+-- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @a@. It is more
+-- efficient to use '_qi' or '_qiABD' when modifying multiple terms at once.
+--
+-- >>> view _qiA (qi 3 4 5 6)
+-- 3
+--
+-- >>> over _qiA (+ 10) (qi 3 4 5 6)
+-- qi 13 4 5 6
+_qiA :: Lens' QI Integer
+_qiA = _qiABD . go
+  where go f ~(a,b,d) = (\a' -> (a',b,d)) <$> f a
+
+-- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @b@. It is more
+-- efficient to use '_qi' or '_qiABD' when modifying multiple terms at once.
+--
+-- >>> view _qiB (qi 3 4 5 6)
+-- 4
+--
+-- >>> over _qiB (+ 10) (qi 3 4 5 6)
+-- qi 3 14 5 6
+_qiB :: Lens' QI Integer
+_qiB = _qiABD . go
+  where go f ~(a,b,d) = (\b' -> (a,b',d)) <$> f b
+
+-- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @c@. It is more
+-- efficient to use '_qi' or '_qiABD' when modifying multiple terms at once.
+--
+-- >>> view _qiC (qi 3 4 5 6)
+-- 5
+--
+-- >>> over _qiC (+ 10) (qi 3 4 5 6)
+-- qi 3 4 15 6
+_qiC :: Lens' QI Integer
+_qiC = _qi . go
+  where go f ~(a,b,c,d) = (\c' -> (a,b,c',d)) <$> f c
+
+-- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @d@. It is more
+-- efficient to use '_qi' or '_qiABD' when modifying multiple terms at once.
+--
+-- >>> view _qiD (qi 3 4 5 6)
+-- 6
+--
+-- >>> over _qiD (+ 10) (qi 3 4 5 6)
+-- qi 3 4 5 16
+_qiD :: Lens' QI Integer
+_qiD = _qiABD . go
+  where go f ~(a,b,d) = (\d' -> (a,b,d')) <$> f d
 
 -- | The constant zero.
 --
@@ -243,8 +320,8 @@ qiToFloat (unQI -> ~(a,b,c,d)) =
 -- >>> qi 3 4 5 6 `qiAddI` 1
 -- qi 9 4 5 6
 qiAddI :: QI -> Integer -> QI
-qiAddI n x = qiModify n $ \a b d ->
-  a `seq` b `seq` d `seq` x `seq` (a + d*x, b, d)
+qiAddI n x = over _qiABD go n
+  where go ~(a,b,d) = a `seq` b `seq` d `seq` x `seq` (a + d*x, b, d)
 {-# INLINE qiAddI #-}
 
 -- | Add a 'Rational' to a 'QI'.
@@ -252,12 +329,14 @@ qiAddI n x = qiModify n $ \a b d ->
 -- >>> qi 3 4 5 6 `qiAddR` 1.2
 -- qi 51 20 5 30
 qiAddR :: QI -> Rational -> QI
-qiAddR n x = qiModify n $ \a b d ->
-  -- n = (a + b √c)/d + xN/xD
-  -- n = ((a + b √c) xD)/(d xD) + (d xN)/(d xD)
-  -- n = ((a xD + d xN) + b xD √c)/(d xD)
-  a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xD + d*xN, b*xD, d*xD)
-  where (xN, xD) = (numerator x, denominator x)
+qiAddR n x = over _qiABD go n
+  where
+    -- n = (a + b √c)/d + xN/xD
+    -- n = ((a + b √c) xD)/(d xD) + (d xN)/(d xD)
+    -- n = ((a xD + d xN) + b xD √c)/(d xD)
+    go ~(a,b,d) =
+      a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xD + d*xN, b*xD, d*xD)
+    (xN, xD) = (numerator x, denominator x)
 {-# INLINE qiAddR #-}
 
 -- | Subtract an 'Integer' from a 'QI'.
@@ -281,8 +360,8 @@ qiSubR n x = qiAddR n (negate x)
 -- >>> qi 3 4 5 6 `qiMulI` 2
 -- qi 3 4 5 3
 qiMulI :: QI -> Integer -> QI
-qiMulI n x = qiModify n $ \a b d ->
-  a `seq` b `seq` d `seq` x `seq` (a*x, b*x, d)
+qiMulI n x = over _qiABD go n
+  where go ~(a,b,d) = a `seq` b `seq` d `seq` x `seq` (a*x, b*x, d)
 {-# INLINE qiMulI #-}
 
 -- | Multiply a 'QI' by a 'Rational'.
@@ -290,11 +369,12 @@ qiMulI n x = qiModify n $ \a b d ->
 -- >>> qi 3 4 5 6 `qiMulR` 0.5
 -- qi 3 4 5 12
 qiMulR :: QI -> Rational -> QI
-qiMulR n x = qiModify n $ \a b d ->
-  -- n = (a + b √c)/d xN/xD
-  -- n = (a xN + b xN √c)/(d xD)
-  a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xN, b*xN, d*xD)
-  where (xN, xD) = (numerator x, denominator x)
+qiMulR n x = over _qiABD go n
+  where
+    -- n = (a + b √c)/d xN/xD
+    -- n = (a xN + b xN √c)/(d xD)
+    go ~(a,b,d) = a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xN, b*xN, d*xD)
+    (xN, xD) = (numerator x, denominator x)
 {-# INLINE qiMulR #-}
 
 -- | Divice a 'QI' by an 'Integer'.
@@ -302,8 +382,8 @@ qiMulR n x = qiModify n $ \a b d ->
 -- >>> qi 3 4 5 6 `qiDivI` 2
 -- qi 3 4 5 12
 qiDivI :: QI -> Integer -> QI
-qiDivI n (nonZero "qiDivI" -> x) = qiModify n $ \a b d ->
-  a `seq` b `seq` d `seq` x `seq` (a, b, d*x)
+qiDivI n (nonZero "qiDivI" -> x) = over _qiABD go n
+  where go ~(a,b,d) = a `seq` b `seq` d `seq` x `seq` (a, b, d*x)
 {-# INLINE qiDivI #-}
 
 -- | Divice a 'QI' by a 'Rational'.
@@ -319,8 +399,8 @@ qiDivR n (nonZero "qiDivR" -> x) = qiMulR n (recip x)
 -- >>> qiNegate (qi 3 4 5 6)
 -- qi (-3) (-4) 5 6
 qiNegate :: QI -> QI
-qiNegate n = qiModify n $ \a b d ->
-  a `seq` b `seq` d `seq` (negate a, negate b, d)
+qiNegate n = over _qiABD go n
+  where go ~(a,b,d) = a `seq` b `seq` d `seq` (negate a, negate b, d)
 {-# INLINE qiNegate #-}
 
 -- | Compute the reciprocal of a 'QI'.
@@ -342,7 +422,7 @@ qiRecip n@(unQI -> ~(a,b,c,d))
   -- (a d − b d √c) / (a² − b² c)
   | qiIsZero n = Nothing
   | denom == 0 = error ("qiRecip: Failed for " ++ show n)
-  | otherwise  = Just (qiModify n (\_ _ _ -> (a * d, negate (b * d), denom)))
+  | otherwise  = Just (set _qiABD (a * d, negate (b * d), denom) n)
   where denom = (a*a - b*b * c)
 
 -- | Add two 'QI's if the square root terms are the same or zeros.
@@ -360,9 +440,9 @@ qiAdd n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
   -- n = (a + b √c)/d + (a' + b' √c')/d'
   -- n = ((a + b √c) d' + (a' + b' √c') d)/(d d')
   -- if c = c' then n = ((a d' + a' d) + (b d' + b' d) √c)/(d d')
-  | c  == 0   = Just (qiModify n' (\_ _ _ -> (a*d' + a'*d,        b'*d, d*d')))
-  | c' == 0   = Just (qiModify n  (\_ _ _ -> (a*d' + a'*d, b*d'       , d*d')))
-  | c  == c'  = Just (qiModify n  (\_ _ _ -> (a*d' + a'*d, b*d' + b'*d, d*d')))
+  | c  == 0   = Just (set _qiABD (a*d' + a'*d,        b'*d, d*d') n')
+  | c' == 0   = Just (set _qiABD (a*d' + a'*d, b*d'       , d*d') n)
+  | c  == c'  = Just (set _qiABD (a*d' + a'*d, b*d' + b'*d, d*d') n)
   | otherwise = Nothing
 
 -- | Subtract two 'QI's if the square root terms are the same or zeros.
@@ -398,9 +478,9 @@ qiMul n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
   -- if c = 0  then n = (a a' + a b' √c')/(d d')
   -- if c' = 0 then n = (a a' + a' b √c)/(d d')
   -- if c = c' then n = ((a a' + b b' c) + (a b' + a' b) √c)/(d d')
-  | c  == 0   = Just (qiModify n' (\_ _ _ -> (a*a'         , a*b'       , d*d')))
-  | c' == 0   = Just (qiModify n  (\_ _ _ -> (a*a'         ,        a'*b, d*d')))
-  | c  == c'  = Just (qiModify n  (\_ _ _ -> (a*a' + b*b'*c, a*b' + a'*b, d*d')))
+  | c  == 0   = Just (set _qiABD (a*a'         , a*b'       , d*d') n')
+  | c' == 0   = Just (set _qiABD (a*a'         ,        a'*b, d*d') n)
+  | c  == c'  = Just (set _qiABD (a*a' + b*b'*c, a*b' + a'*b, d*d') n)
   | otherwise = Nothing
 
 -- | Divide two 'QI's if the square root terms are the same or zeros.

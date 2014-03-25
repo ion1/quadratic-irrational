@@ -10,6 +10,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck
 
 import Numeric.QuadraticIrrational
+import Numeric.QuadraticIrrational.Internal.Lens
 
 -- Slow but precise.
 type RefFloat = CReal
@@ -44,19 +45,48 @@ tests =
       , testProperty "qi'/runQI'" $ \a b (NonNegative c) ->
           runQI' (qi' a b c) $ \a' b' c' ->
             approxEq' (approxQI' a b c) (approxQI' a' b' c')
-
-      , testProperty "qiModify" $ \n a' b' (NonZero d') ->
-          runQI n $ \a b c d ->
-            approxEq' (qiToFloat (qiModify n (\a_ b_ d_ ->
-                                                (a_+a', b_-b', d_*d'))))
-                      (qiToFloat (qi (a+a') (b-b') c (d*d')))
-
-      , testProperty "qiToFloat" $ \a b (NonNegative c) (NonZero d) ->
-          approxEq' (qiToFloat (qi a b c d)) (approxQI a b c d)
       ]
+    , testGroup "Lenses"
+      [ testProperty "_qi" $ \n a' b' (NonNegative c') (NonZero d') ->
+          let n'  = over _qi (\(a,b,c,d) -> (a+a',b-b',c*c',d*d')) n
+              n'' = runQI n $ \a b c d -> qi (a+a') (b-b') (c*c') (d*d')
+          in  approxEq (qiToFloat n') (qiToFloat n'')
 
+      , testProperty "_qi'" $ \n a' b' (NonNegative c') ->
+          let n'  = over _qi' (\(a,b,c) -> (a+a',b-b',c*c')) n
+              n'' = runQI' n $ \a b c -> qi' (a+a') (b-b') (c*c')
+          in  approxEq (qiToFloat n') (qiToFloat n'')
+
+      , testProperty "_qiABD" $ \n a' b' (NonZero d') ->
+          let n'  = over _qiABD (\(a,b,d) -> (a+a',b-b',d*d')) n
+              n'' = runQI n $ \a b c d -> qi (a+a') (b-b') c (d*d')
+          in  approxEq (qiToFloat n') (qiToFloat n'')
+
+      , testProperty "_qiA" $ \n a' ->
+          let n'  = over _qiA (+ a') n
+              n'' = runQI n $ \a b c d -> qi (a+a') b c d
+          in  approxEq (qiToFloat n') (qiToFloat n'')
+
+      , testProperty "_qiB" $ \n b' ->
+          let n'  = over _qiB (+ b') n
+              n'' = runQI n $ \a b c d -> qi a (b+b') c d
+          in  approxEq (qiToFloat n') (qiToFloat n'')
+
+      , testProperty "_qiC" $ \n (NonNegative c') ->
+          let n'  = over _qiC (* c') n
+              n'' = runQI n $ \a b c d -> qi a b (c*c') d
+          in  approxEq (qiToFloat n') (qiToFloat n'')
+
+      , testProperty "_qiD" $ \n (NonZero d') ->
+          let n'  = over _qiD (* d') n
+              n'' = runQI n $ \a b c d -> qi a b c (d*d')
+          in  approxEq (qiToFloat n') (qiToFloat n'')
+      ]
     , testGroup "Numerical operations"
-      [ testProperty "qiAddI" $ \n x ->
+      [ testProperty "qiToFloat" $ \a b (NonNegative c) (NonZero d) ->
+          approxEq' (qiToFloat (qi a b c d)) (approxQI a b c d)
+
+      , testProperty "qiAddI" $ \n x ->
           approxEq' (qiToFloat (qiAddI n x)) (qiToFloat n + fromInteger x)
 
       , testProperty "qiSubI" $ \n x ->
@@ -116,8 +146,9 @@ tests =
 
       , testProperty "qiFloor" $ \n ->
           qiFloor n === floor (qiToFloat n :: RefFloat)
-
-      , testProperty "qiToContinuedFraction/continuedFractionToQI" $ \n ->
+      ]
+    , testGroup "Continued fractions"
+      [ testProperty "qiToContinuedFraction/continuedFractionToQI" $ \n ->
           let cf  = qiToContinuedFraction n
               len = case cf of
                       (_, NonCyc _)   -> 0
