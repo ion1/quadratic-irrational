@@ -1,3 +1,7 @@
+# (next)
+
+* Add a more verbose description of the library.
+
 # 0.0.2 (2014-03-25)
 
 * Add doctests.
