@@ -44,7 +44,7 @@ import Text.Read
 import Numeric.QuadraticIrrational.CyclicList
 import Numeric.QuadraticIrrational.Internal.Lens
 
--- | @(a + b √c) / d@
+-- | @(a + b √c) \/ d@
 data QI = QI !Integer
              !Integer
              !Integer
@@ -70,7 +70,7 @@ instance Read QI where
 
 type QITuple = (Integer, Integer, Integer, Integer)
 
--- | Given @a@, @b@, @c@ and @d@ such that @n = (a + b √c)/d@, constuct a 'QI'
+-- | Given @a@, @b@, @c@ and @d@ such that @n = (a + b √c)\/d@, constuct a 'QI'
 -- corresponding to @n@.
 --
 -- >>> qi 3 4 5 6
@@ -166,7 +166,7 @@ qi' a b (nonNegative "qi'" -> c) = n
     (bN, bD) = (numerator b, denominator b)
 {-# INLINE qi' #-}
 
--- | Given @n@ and @f@ such that @n = (a + b √c)/d@, run @f a b c d@.
+-- | Given @n@ and @f@ such that @n = (a + b √c)\/d@, run @f a b c d@.
 --
 -- >>> runQI (qi 3 4 5 6) (\a b c d -> (a,b,c,d))
 -- (3,4,5,6)
@@ -182,7 +182,7 @@ runQI' :: QI -> (Rational -> Rational -> Integer -> a) -> a
 runQI' (QI a b c d) f = f (a % d) (b % d) c
 {-# INLINE runQI' #-}
 
--- | Given @n@ such that @n = (a + b √c)/d@, return @(a, b, c, d)@.
+-- | Given @n@ such that @n = (a + b √c)\/d@, return @(a, b, c, d)@.
 --
 -- >>> unQI (qi 3 4 5 6)
 -- (3,4,5,6)
@@ -198,7 +198,7 @@ unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
 {-# INLINE unQI' #-}
 
--- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @(a, b, c, d)@.
+-- | Given a 'QI' corresponding to @n = (a + b √c)\/d@, access @(a, b, c, d)@.
 --
 -- >>> view _qi (qi 3 4 5 6)
 -- (3,4,5,6)
@@ -220,7 +220,7 @@ _qi' :: Lens' QI (Rational, Rational, Integer)
 _qi' f n = (\ ~(a',b',c') -> qi' a' b' c') <$> f (unQI' n)
 {-# INLINE _qi' #-}
 
--- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @(a, b, d)@.
+-- | Given a 'QI' corresponding to @n = (a + b √c)\/d@, access @(a, b, d)@.
 -- Avoids having to simplify @b √c@ upon reconstruction.
 --
 -- >>> view _qiABD (qi 3 4 5 6)
@@ -233,7 +233,7 @@ _qiABD f (unQI -> ~(a,b,c,d)) =
   (\ ~(a',b',d') -> qiNoSimpl a' b' c d') <$> f (a,b,d)
 {-# INLINE _qiABD #-}
 
--- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @a@. It is more
+-- | Given a 'QI' corresponding to @n = (a + b √c)\/d@, access @a@. It is more
 -- efficient to use '_qi' or '_qiABD' when modifying multiple terms at once.
 --
 -- >>> view _qiA (qi 3 4 5 6)
@@ -245,7 +245,7 @@ _qiA :: Lens' QI Integer
 _qiA = _qiABD . go
   where go f ~(a,b,d) = (\a' -> (a',b,d)) <$> f a
 
--- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @b@. It is more
+-- | Given a 'QI' corresponding to @n = (a + b √c)\/d@, access @b@. It is more
 -- efficient to use '_qi' or '_qiABD' when modifying multiple terms at once.
 --
 -- >>> view _qiB (qi 3 4 5 6)
@@ -257,7 +257,7 @@ _qiB :: Lens' QI Integer
 _qiB = _qiABD . go
   where go f ~(a,b,d) = (\b' -> (a,b',d)) <$> f b
 
--- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @c@. It is more
+-- | Given a 'QI' corresponding to @n = (a + b √c)\/d@, access @c@. It is more
 -- efficient to use '_qi' or '_qiABD' when modifying multiple terms at once.
 --
 -- >>> view _qiC (qi 3 4 5 6)
@@ -269,7 +269,7 @@ _qiC :: Lens' QI Integer
 _qiC = _qi . go
   where go f ~(a,b,c,d) = (\c' -> (a,b,c',d)) <$> f c
 
--- | Given a 'QI' corresponding to @n = (a + b √c)/d@, access @d@. It is more
+-- | Given a 'QI' corresponding to @n = (a + b √c)\/d@, access @d@. It is more
 -- efficient to use '_qi' or '_qiABD' when modifying multiple terms at once.
 --
 -- >>> view _qiD (qi 3 4 5 6)
