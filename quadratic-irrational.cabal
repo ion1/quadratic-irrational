@@ -21,6 +21,7 @@ build-type: Simple
 cabal-version: >= 1.10
 extra-source-files:
   .gitignore
+  .travis.yml
   ChangeLog.md
   README.md
 
