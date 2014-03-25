@@ -14,9 +14,6 @@ module Numeric.QuadraticIrrational.CyclicList
 import Data.Foldable
 import Data.Monoid
 
--- $setup
--- import Data.Foldable (toList)
-
 -- | A container for a possibly cyclic list.
 --
 -- >>> toList (NonCyc "hello")
