@@ -1,4 +1,4 @@
-# (next)
+# 0.0.2 (2014-03-25)
 
 * Add doctests.
 * Fix qiModify potentially constructing `qi 1 0 5 1` instead of the equivalent
