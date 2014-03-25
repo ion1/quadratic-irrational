@@ -1,4 +1,4 @@
-# (next)
+# 0.0.3 (2014-03-26)
 
 * Add a more verbose description of the library.
 
