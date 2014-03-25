@@ -15,7 +15,8 @@
 -- <http://en.wikipedia.org/wiki/Periodic_continued_fraction periodic continued fractions>.
 
 module Numeric.QuadraticIrrational
-  ( QI, qi, qi', qiModify, runQI, runQI', unQI, unQI'
+  ( QI, qi, qi', runQI, runQI', unQI, unQI'
+  , qiModify
   , qiZero, qiOne, qiIsZero
   , qiToFloat
   , qiAddI, qiSubI, qiMulI, qiDivI
@@ -103,6 +104,16 @@ qi a b (nonNegative "qi" -> c) (nonZero "qi" -> d)
   | otherwise = simplifyReduceCons a b c d
 {-# INLINE qi #-}
 
+-- Construct a 'QI' without simplifying @b √c@. Make sure it has already been
+-- simplified.
+qiNoSimpl :: Integer -> Integer -> Integer -> Integer -> QI
+qiNoSimpl a b (nonNegative "qiNoSimpl" -> c) (nonZero "qiNoSimpl" -> d)
+  | b == 0    = reduceCons a 0 0 d
+  | c == 0    = reduceCons a 0 0 d
+  | c == 1    = reduceCons (a + b) 0 0 d
+  | otherwise = reduceCons a b c d
+{-# INLINE qiNoSimpl #-}
+
 -- Simplify @b √c@ before constructing a 'QI'.
 simplifyReduceCons :: Integer -> Integer -> Integer -> Integer -> QI
 simplifyReduceCons a b (nonZero "simplifyReduceCons" -> c) d
@@ -149,18 +160,6 @@ qi' a b (nonNegative "qi'" -> c) = n
     (bN, bD) = (numerator b, denominator b)
 {-# INLINE qi' #-}
 
--- | Given a 'QI' corresponding to @n = (a + b √c)/d@, modify @(a, b, d)@.
--- Avoids having to simplify @b √c@.
---
--- >>> qiModify (qi 3 4 5 6) (\a b d -> (a+10, b+10, d+10))
--- qi 13 14 5 16
-qiModify :: QI
-         -> (Integer -> Integer -> Integer -> (Integer, Integer, Integer))
-         -> QI
-qiModify (QI a b c d) f = reduceCons a' b' c d'
-  where (a', b', d') = f a b d
-{-# INLINE qiModify #-}
-
 -- | Given @n@ and @f@ such that @n = (a + b √c)/d@, run @f a b c d@.
 --
 -- >>> runQI (qi 3 4 5 6) (\a b c d -> (a,b,c,d))
@@ -192,6 +191,18 @@ unQI n = runQI n (,,,)
 unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
 {-# INLINE unQI' #-}
+
+-- | Given a 'QI' corresponding to @n = (a + b √c)/d@, modify @(a, b, d)@.
+-- Avoids having to simplify @b √c@.
+--
+-- >>> qiModify (qi 3 4 5 6) (\a b d -> (a+10, b+10, d+10))
+-- qi 13 14 5 16
+qiModify :: QI
+         -> (Integer -> Integer -> Integer -> (Integer, Integer, Integer))
+         -> QI
+qiModify (unQI -> ~(a,b,c,d)) f = qiNoSimpl a' b' c d'
+  where (a', b', d') = f a b d
+{-# INLINE qiModify #-}
 
 -- | The constant zero.
 --
