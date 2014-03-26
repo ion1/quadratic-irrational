@@ -2,8 +2,9 @@
 
 [![Build Status](https://travis-ci.org/ion1/quadratic-irrational.svg)](https://travis-ci.org/ion1/quadratic-irrational)
 
-An implementation of [quadratic irrationals][qi] with support for conversion
-from and to [periodic continued fractions][pcf].
+A library for exact computation with [quadratic irrationals][qi] with support
+for exact conversion from and to [(potentially periodic) simple continued
+fractions][pcf].
 
 [qi]:  http://en.wikipedia.org/wiki/Quadratic_irrational
 [pcf]: http://en.wikipedia.org/wiki/Periodic_continued_fraction
@@ -24,19 +25,19 @@ Some examples of such numbers are
 
 * `(1 + √5)/2` ([the golden ratio][gr]),
 
-* solutions to some quadratic equations – the [quadratic formula][qf] has a
-  familiar shape.
+* solutions to quadratic equations with rational constants – the [quadratic
+  formula][qf] has a familiar shape.
 
 [gr]: http://en.wikipedia.org/wiki/Golden_ratio
 [qf]: http://en.wikipedia.org/wiki/Quadratic_formula
 
-A continued fraction is a number that can be expressed in the form
+A simple continued fraction is a number in the form
 
 ```
 a + 1/(b + 1/(c + 1/(d + 1/(e + …))))
 ```
 
-or alternatively expressed using the notation
+or alternatively written as
 
 ```
 [a; b, c, d, e, …]
@@ -44,8 +45,8 @@ or alternatively expressed using the notation
 
 where `a` is an integer and `b`, `c`, `d`, `e`, … are positive integers.
 
-Every finite continued fraction represents a rational number and every
-infinite, periodic continued fraction represents a quadratic irrational.
+Every finite SCF represents a rational number and every infinite, periodic SCF
+represents a quadratic irrational.
 
 ```
 3.5      = [3; 2]

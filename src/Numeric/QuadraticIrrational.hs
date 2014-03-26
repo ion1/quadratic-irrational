@@ -9,10 +9,10 @@
 -- Stability   : provisional
 -- Portability : ViewPatterns
 --
--- An implementation of
+-- A library for exact computation with
 -- <http://en.wikipedia.org/wiki/Quadratic_irrational quadratic irrationals>
--- with support for conversion from and to
--- <http://en.wikipedia.org/wiki/Periodic_continued_fraction periodic continued fractions>.
+-- with support for exact conversion from and to
+-- <http://en.wikipedia.org/wiki/Periodic_continued_fraction (potentially periodic) simple continued fractions>.
 --
 -- A quadratic irrational is a number that can be expressed in the form
 --
@@ -29,22 +29,22 @@
 -- * @(1 + √5)\/2@
 --   (<http://en.wikipedia.org/wiki/Golden_ratio the golden ratio>),
 --
--- * solutions to some quadratic equations – the
+-- * solutions to quadratic equations with rational constants – the
 --   <http://en.wikipedia.org/wiki/Quadratic_formula quadratic formula> has a
 --   familiar shape.
 --
--- A continued fraction is a number that can be expressed in the form
+-- A simple continued fraction is a number expressed in the form
 --
 -- > a + 1/(b + 1/(c + 1/(d + 1/(e + …))))
 --
--- or alternatively expressed using the notation
+-- or alternatively written as
 --
 -- > [a; b, c, d, e, …]
 --
 -- where @a@ is an integer and @b@, @c@, @d@, @e@, … are positive integers.
 --
--- Every finite continued fraction represents a rational number and every
--- infinite, periodic continued fraction represents a quadratic irrational.
+-- Every finite SCF represents a rational number and every infinite, periodic
+-- SCF represents a quadratic irrational.
 --
 -- > 3.5      = [3; 2]
 -- > (1+√5)/2 = [1; 1, 1, 1, …]
