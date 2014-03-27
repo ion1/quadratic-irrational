@@ -593,7 +593,7 @@ qiFloor (unQI -> ~(a,b,c,d)) =
 
     ~(b2cLow, b2cHigh) = iSqrtBounds (b*b * c)
 
--- | Convert a (possibly periodic) continued fraction to a 'QI'.
+-- | Convert a (possibly periodic) simple continued fraction to a 'QI'.
 --
 -- @[2; 2] = 2 + 1\/2 = 5\/2@.
 --
@@ -649,7 +649,7 @@ continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
 
     pos = positive "continuedFractionToQI"
 
--- | Convert a 'QI' into a (possibly periodic) continued fraction.
+-- | Convert a 'QI' into a (possibly periodic) simple continued fraction.
 --
 -- @5\/2 = 2 + 1\/2 = [2; 2]@.
 --
@@ -697,7 +697,7 @@ qiToContinuedFractionList num =
       where i = qiFloor n
     go Nothing  = []
 
--- | Compute a rational partial evaluation of a continued fraction.
+-- | Compute a rational partial evaluation of a simple continued fraction.
 --
 -- Rational approximations that converge toward φ:
 --
