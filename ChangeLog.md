@@ -1,6 +1,8 @@
 # (unreleased)
 
 * Make the description more precise.
+* Add continuedFractionApproximate for rational partial evaluations of
+  continued fractions.
 
 # 0.0.3 (2014-03-26)
 

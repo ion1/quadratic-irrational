@@ -64,11 +64,13 @@ module Numeric.QuadraticIrrational
   , qiFloor
   , -- * Continued fractions
     continuedFractionToQI, qiToContinuedFraction
+  , continuedFractionApproximate
   , module Numeric.QuadraticIrrational.CyclicList
   ) where
 
 import Control.Applicative
 import Control.Monad.State
+import qualified Data.Foldable as F
 import Data.List
 import Data.Maybe
 import Data.Ratio
@@ -694,6 +696,20 @@ qiToContinuedFractionList num =
     go (Just n) = (unQI n, i) : go (qiRecip (qiSubI n i))
       where i = qiFloor n
     go Nothing  = []
+
+-- | Compute a rational partial evaluation of a continued fraction.
+--
+-- Rational approximations that converge toward φ:
+--
+-- >>> [ continuedFractionApproximate n (1, repeat 1) | n <- [0,3..18] ]
+-- [1 % 1,5 % 3,21 % 13,89 % 55,377 % 233,1597 % 987,6765 % 4181]
+continuedFractionApproximate :: F.Foldable f
+                             => Int -> (Integer, f Integer) -> Rational
+continuedFractionApproximate n (i0, F.toList -> is) =
+  fromInteger i0 +
+    foldr (\(pos -> i) r -> recip (fromInteger i + r)) 0 (take n is)
+  where
+    pos = positive "continuedFractionApproximate"
 
 iSqrtBounds :: Integer -> (Integer, Integer)
 iSqrtBounds n = (low, high)
