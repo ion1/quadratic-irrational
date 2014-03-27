@@ -1,4 +1,4 @@
-# (unreleased)
+# 0.0.4 (2014-03-27)
 
 * Make the description more precise.
 * Add continuedFractionApproximate for rational partial evaluations of
