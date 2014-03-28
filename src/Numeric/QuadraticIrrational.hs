@@ -71,10 +71,8 @@ module Numeric.QuadraticIrrational
 import Control.Applicative
 import Control.Monad.State
 import qualified Data.Foldable as F
-import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Monoid
 import Data.Ratio
 import qualified Data.Set as Set
 import Math.NumberTheory.Powers.Squares
@@ -112,37 +110,59 @@ instance Read QI where
   readListPrec = readListPrecDefault
 
 instance Ord QI where
-  -- n₀ = a₀ + 1/(b₀ + 1/(c₀ + 1/d₀))
-  -- n₁ = a₁ + 1/(b₁ + 1/(c₁ + 1/d₁))
-  -- if                   a₀ < a₁ then n₀ < n₁
-  -- if       a₀ = a₁ and b₀ < b₁ then n₀ > n₁
-  -- if … and b₀ = b₁ and c₀ < c₁ then n₀ < n₁
-  -- if … and c₀ = c₁ and d₀ < d₁ then n₀ > n₁
-  --
-  -- if n₀ = a                 and n₁ = a+1/b                   then n₀ < n₁
-  -- if n₀ = a+1/b             and n₁ = a+1/(b+1/c)             then n₀ > n₁
-  -- if n₀ = a+1/(b+1/c)       and n₁ = a+1/(b+1/(c+1/d))       then n₀ < n₁
-  -- if n₀ = a+1/(b+1/(c+1/d)) and n₁ = a+1/(b+1/(c+1/(d+1/e))) then n₀ > n₁
-  compare = go `on` toCompareList
+  compare (QI a b c d) (QI a' b' c' d') = res
     where
-      toCompareList n =
-        case qiToContinuedFractionList n of
-          ~(i, is) -> (unQI n, i) : is
+      -- (a + b √c)/d   ⋛ (a' + b' √c')/d'
+      -- (a + b √c) d'  ⋛ (a' + b' √c') d
+      -- a d' + b d' √c ⋛ a' d + b' d √c'
+      -- a d' − a' d    ⋛ b' d √c' − b d' √c
+      --
+      -- let i = a d' − a' d
+      --     j = b' d √c'
+      --     k = b d' √c
+      i = a * d' - a' * d
+      sqJ = sq b' * sq d  * c'
+      sqK = sq b  * sq d' * c
 
-      go (~(a,i):is) (~(b,j):js)
-        | a == b    = EQ
-        | otherwise = compare i j <> go js is  -- Swap lists.
-      go []    (_:_) = GT
-      go (_:_) []    = LT
-      go []    []    = EQ
+      -- i ⋛ j − k
+      --
+      -- sign (b' d √c') = sign b' because d  ≥ 0 and c' ≥ 0
+      -- sign (b d' √c)  = sign b  because d' ≥ 0 and c  ≥ 0
+      --
+      -- if j − k < 0 then (sign b') j² − (sign b) k² < 0
+      --
+      -- (sign i) |i| ⋛ sign ((sign b') j² − (sign b) k²) |j − k|
+      --
+      -- let snL = sign i
+      --     snR = sign ((sign b') j² − (sign b) k²)
+      snL = signum i
+      snR = signum (signum b' * sqJ - signum b * sqK)
 
-  -- TODO: Alternative approach?
-  -- (a + b √c)/d   ⋛ (a' + b' √c')/d'
-  -- (a + b √c) d'  ⋛ (a' + b' √c') d
-  -- a d' + b d' √c ⋛ a' d + b' d √c'
-  -- a d' − a' d    ⋛ b' d √c' − b d' √c
-  -- a d' − a' d    ⋛ signum (b' d) √(b'² d² c') − signum (b d') √(b² d'² c)
-  -- Finish the calculation.
+      -- snL |i|                ⋛ snR |j − k|
+      -- snL i²                 ⋛ snR (j − k)²
+      -- snL i²                 ⋛ snR (j² + k² − 2 j k)
+      -- snL i² − snR (j² + k²) ⋛ snR (−2) j k
+      -- snL i² − snR (j² + k²) ⋛ snR (−2) b b' d d' √c √c'
+      --
+      -- let q = snL i² − snR (j² + k²)
+      --     r = snR (−2) b b' d d' √c √c'
+      q = snL * sq i - snR * (sqJ + sqK)
+      sqR = 4 * sq b * sq b' * sq d * sq d' * c * c'
+
+      -- q ⋛ r
+      --
+      -- sign (snR (−2) b b' d d' √c √c') = sign (snR (−2) b b')
+      --
+      -- let snL' = sign q
+      --     snR' = sign (snR (−2) b b')
+      snL' = signum q
+      snR' = signum (snR * (-2) * b * b')
+
+      -- snL' |q| ⋛ snR' |r|
+      -- snL' q²  ⋛ snR' r²
+      res = compare (snL' * sq q) (snR' * sqR)
+
+      sq x = x*x
 
 type QITuple = (Integer, Integer, Integer, Integer)
 
