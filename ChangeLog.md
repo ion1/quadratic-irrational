@@ -1,4 +1,4 @@
-# (unreleased)
+# 0.0.5 (2014-03-28)
 
 * Add an `Ord` instance.
 
