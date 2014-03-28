@@ -155,7 +155,7 @@ tests =
                       (_, Cyc _ _ xs) -> length xs
           -- Limit the length of the periodic part for speed.
           in (len <= 100) ==>
-               approxEq' (qiToFloat n) (qiToFloat (continuedFractionToQI cf))
+               n === continuedFractionToQI cf
 
       , testProperty "continuedFractionApproximate" $ \n ->
           let cf = qiToContinuedFraction n
