@@ -86,6 +86,17 @@ tests =
       [ testProperty "qiToFloat" $ \a b (NonNegative c) (NonZero d) ->
           approxEq' (qiToFloat (qi a b c d)) (approxQI a b c d)
 
+      , testProperty "compare equals" $ \a ->
+          conjoin [ a === a, compare a a === EQ ]
+            `const` (a :: QI)
+
+      , testProperty "compare" $ \a b ->
+          let a' = qiToFloat a :: RefFloat
+              b' = qiToFloat b :: RefFloat
+          in  conjoin [ (a == b)    === (a' == b')
+                      , compare a b === compare a' b'
+                      ]
+
       , testProperty "qiAddI" $ \n x ->
           approxEq' (qiToFloat (qiAddI n x)) (qiToFloat n + fromInteger x)
 

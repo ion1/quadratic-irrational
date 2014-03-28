@@ -71,8 +71,10 @@ module Numeric.QuadraticIrrational
 import Control.Applicative
 import Control.Monad.State
 import qualified Data.Foldable as F
+import Data.Function
 import Data.List
 import Data.Maybe
+import Data.Monoid
 import Data.Ratio
 import qualified Data.Set as Set
 import Math.NumberTheory.Powers.Squares
@@ -108,6 +110,39 @@ instance Read QI where
            <*> step readPrec
 
   readListPrec = readListPrecDefault
+
+instance Ord QI where
+  -- n₀ = a₀ + 1/(b₀ + 1/(c₀ + 1/d₀))
+  -- n₁ = a₁ + 1/(b₁ + 1/(c₁ + 1/d₁))
+  -- if                   a₀ < a₁ then n₀ < n₁
+  -- if       a₀ = a₁ and b₀ < b₁ then n₀ > n₁
+  -- if … and b₀ = b₁ and c₀ < c₁ then n₀ < n₁
+  -- if … and c₀ = c₁ and d₀ < d₁ then n₀ > n₁
+  --
+  -- if n₀ = a                 and n₁ = a+1/b                   then n₀ < n₁
+  -- if n₀ = a+1/b             and n₁ = a+1/(b+1/c)             then n₀ > n₁
+  -- if n₀ = a+1/(b+1/c)       and n₁ = a+1/(b+1/(c+1/d))       then n₀ < n₁
+  -- if n₀ = a+1/(b+1/(c+1/d)) and n₁ = a+1/(b+1/(c+1/(d+1/e))) then n₀ > n₁
+  compare = go `on` toCompareList
+    where
+      toCompareList n =
+        case qiToContinuedFractionList n of
+          ~(i, is) -> (unQI n, i) : is
+
+      go (~(a,i):is) (~(b,j):js)
+        | a == b    = EQ
+        | otherwise = compare i j <> go js is  -- Swap lists.
+      go []    (_:_) = GT
+      go (_:_) []    = LT
+      go []    []    = EQ
+
+  -- TODO: Alternative approach?
+  -- (a + b √c)/d   ⋛ (a' + b' √c')/d'
+  -- (a + b √c) d'  ⋛ (a' + b' √c') d
+  -- a d' + b d' √c ⋛ a' d + b' d √c'
+  -- a d' − a' d    ⋛ b' d √c' − b d' √c
+  -- a d' − a' d    ⋛ signum (b' d) √(b'² d² c') − signum (b d') √(b² d'² c)
+  -- Finish the calculation.
 
 type QITuple = (Integer, Integer, Integer, Integer)
 
