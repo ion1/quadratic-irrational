@@ -1,11 +1,15 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE CPP                  #-}
 
 module CyclicList (tests) where
 
-import Control.Applicative
-import qualified Data.Foldable as F
-import Test.Tasty
-import Test.Tasty.QuickCheck
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative ((<$>), (<*>))
+#endif
+import Data.Foldable (toList)
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.QuickCheck (Arbitrary (arbitrary, shrink), Property, (===),
+  oneof, testProperty)
 
 import Numeric.QuadraticIrrational.CyclicList
 
@@ -25,16 +29,18 @@ tests =
     [ testProperty "fmap" . withListEquiv $ \asC asL ->
         initEq' (fmap (*10) asC) (fmap (*10) asL)
     , testProperty "toList" . withListEquiv $ \asC asL ->
-        take 1000 (F.toList asC) === take 1000 asL
+        take 1000 (toList asC) === take 1000 asL
     ]
 
 withListEquiv :: (CycList Integer -> [Integer] -> b) -> CycList Integer -> b
 withListEquiv f cl@(NonCyc as)   = f cl as
 withListEquiv f cl@(Cyc as b bs) = f cl (as ++ cycle (b:bs))
 
+{-
 initEq :: Eq a => CycList a -> [a] -> Bool
 initEq (NonCyc as)   cs = take 1000 cs == take 1000 as
 initEq (Cyc as b bs) cs = take 1000 cs == take 1000 (as ++ cycle (b:bs))
+-}
 
 initEq' :: (Eq a, Show a) => CycList a -> [a] -> Property
 initEq' (NonCyc as)   cs = take 1000 cs === take 1000 as

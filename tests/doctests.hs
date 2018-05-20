@@ -1,14 +1,19 @@
+{-# LANGUAGE CPP        #-}
 {-# LANGUAGE MultiWayIf #-}
 
 module Main (main) where
 
-import Control.Applicative
-import Control.Monad
-import Control.Monad.List
-import Data.List
-import System.Directory
-import System.FilePath
-import Test.DocTest
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative ((<$))
+#endif
+import Control.Applicative (empty)
+import Control.Monad (guard)
+import Control.Monad.List (ListT (ListT), liftIO,  runListT)
+import Data.List (isSuffixOf)
+import System.Directory (doesDirectoryExist, doesFileExist,
+  getDirectoryContents)
+import System.FilePath ((</>))
+import Test.DocTest (doctest)
 
 main :: IO ()
 main = do

@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- |
 -- Module      : Numeric.QuadraticIrrational.CyclicList
 -- Description : A container for a possibly cyclic list.
@@ -11,10 +13,17 @@ module Numeric.QuadraticIrrational.CyclicList
   ( CycList (..)
   ) where
 
-import Data.Foldable
-import Data.Monoid
+#if !MIN_VERSION_base(4,8,0)
+import Data.Foldable (foldMap)
+#endif
+#if !MIN_VERSION_base(4,9,0)
+import Data.Monoid ((<>))
+#endif
 
 -- | A container for a possibly cyclic list.
+--
+-- $setup
+-- >>> import Data.Foldable (toList)
 --
 -- >>> toList (NonCyc "hello")
 -- "hello"
