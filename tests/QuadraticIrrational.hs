@@ -1,13 +1,17 @@
-{-# LANGUAGE ViewPatterns #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 module QuadraticIrrational (tests) where
 
-import Control.Applicative
-import Data.Number.CReal
-import Test.Tasty
-import Test.Tasty.QuickCheck
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative ((<$>), (<*>))
+#endif
+import Data.Number.CReal (CReal)
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.QuickCheck (Arbitrary (arbitrary, shrink),
+  NonNegative (NonNegative), NonZero (NonZero), Property, Testable, (===),
+  (==>), conjoin, counterexample, testProperty)
 
 import Numeric.QuadraticIrrational
 import Numeric.QuadraticIrrational.Internal.Lens

@@ -1,4 +1,6 @@
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ViewPatterns     #-}
 
 -- |
 -- Module      : Numeric.QuadraticIrrational
@@ -7,7 +9,7 @@
 -- License     : MIT
 -- Maintainer  : Johan Kiviniemi <devel@johan.kiviniemi.name>
 -- Stability   : provisional
--- Portability : ViewPatterns
+-- Portability : FlexibleContexts, ViewPatterns
 --
 -- A library for exact computation with
 -- <http://en.wikipedia.org/wiki/Quadratic_irrational quadratic irrationals>
@@ -68,16 +70,20 @@ module Numeric.QuadraticIrrational
   , module Numeric.QuadraticIrrational.CyclicList
   ) where
 
-import Control.Applicative
-import Control.Monad.State
-import qualified Data.Foldable as F
-import Data.List
-import Data.Maybe
-import Data.Ratio
-import qualified Data.Set as Set
-import Math.NumberTheory.Powers.Squares
-import Math.NumberTheory.Primes.Factorisation
-import Text.Read
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative ((<$>), (<*>))
+import Data.Foldable (Foldable)
+#endif
+import Control.Monad.State (evalState, gets, modify)
+import Data.Foldable (toList)
+import Data.List (foldl')
+import Data.Maybe (fromMaybe)
+import Data.Ratio ((%), denominator, numerator)
+import qualified Data.Set as Set (empty, insert, member)
+import Math.NumberTheory.Powers.Squares (integerSquareRoot)
+import Math.NumberTheory.Primes.Factorisation (factorise)
+import Text.Read (Lexeme (Ident), Read (readListPrec, readPrec),
+  lexP, parens, prec, readListPrecDefault, step)
 
 import Numeric.QuadraticIrrational.CyclicList
 import Numeric.QuadraticIrrational.Internal.Lens
@@ -758,9 +764,9 @@ qiToContinuedFractionList num =
 --
 -- >>> [ continuedFractionApproximate n (1, repeat 1) | n <- [0,3..18] ]
 -- [1 % 1,5 % 3,21 % 13,89 % 55,377 % 233,1597 % 987,6765 % 4181]
-continuedFractionApproximate :: F.Foldable f
+continuedFractionApproximate :: Foldable f
                              => Int -> (Integer, f Integer) -> Rational
-continuedFractionApproximate n (i0, F.toList -> is) =
+continuedFractionApproximate n (i0, toList -> is) =
   fromInteger i0 +
     foldr (\(pos -> i) r -> recip (fromInteger i + r)) 0 (take n is)
   where
