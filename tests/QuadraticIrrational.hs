@@ -1,12 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE ViewPatterns         #-}
 
 module QuadraticIrrational (tests) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative ((<$>), (<*>))
-#endif
 import Data.Number.CReal (CReal)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.QuickCheck (Arbitrary (arbitrary, shrink),

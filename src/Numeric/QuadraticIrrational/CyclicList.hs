@@ -7,19 +7,13 @@
 -- Stability   : provisional
 -- Portability : portable
 
-{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DeriveFunctor     #-}
 
 module Numeric.QuadraticIrrational.CyclicList
   ( CycList(..)
   ) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Data.Foldable (foldMap)
-#endif
-#if !MIN_VERSION_base(4,9,0)
 import Data.Monoid ((<>))
-#endif
 
 -- | A container for a possibly cyclic list.
 --

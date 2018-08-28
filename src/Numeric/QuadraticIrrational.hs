@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ViewPatterns     #-}
 
@@ -70,10 +69,6 @@ module Numeric.QuadraticIrrational
   , module Numeric.QuadraticIrrational.CyclicList
   ) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative ((<$>), (<*>))
-import Data.Foldable (Foldable)
-#endif
 import Control.Monad.State (evalState, gets, modify)
 import Data.Foldable (toList)
 import Data.List (foldl')

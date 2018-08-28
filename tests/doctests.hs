@@ -1,11 +1,7 @@
-{-# LANGUAGE CPP        #-}
 {-# LANGUAGE MultiWayIf #-}
 
 module Main (main) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative ((<$))
-#endif
 import Control.Applicative (empty)
 import Control.Monad (guard)
 import Control.Monad.List (ListT (ListT), liftIO,  runListT)

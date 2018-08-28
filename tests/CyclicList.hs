@@ -1,11 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE CPP                  #-}
 
 module CyclicList (tests) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative ((<$>), (<*>))
-#endif
 import Data.Foldable (toList)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.QuickCheck (Arbitrary (arbitrary, shrink), (===),
