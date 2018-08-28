@@ -658,21 +658,20 @@ qiFloor (unQI -> ~(a,b,c,d)) =
 --
 -- @[2; 2] = 2 + 1\/2 = 5\/2@.
 --
--- >>> continuedFractionToQI (2,NonCyc [2])
+-- >>> continuedFractionToQI (2,CycList [2] [])
 -- qi 5 0 0 2
 --
 -- The golden ratio is @[1; 1, 1, …]@.
 --
--- >>> showCReal 1000 (qiToFloat (continuedFractionToQI (1,Cyc [] 1 [])))
+-- >>> showCReal 1000 (qiToFloat (continuedFractionToQI (1,CycList [] [1])))
 -- "1.6180339887498948482045868343656381177203091798057628621354486227052604628189024497072072041893911374847540880753868917521266338622235369317931800607667263544333890865959395829056383226613199282902678806752087668925017116962070322210432162695486262963136144381497587012203408058879544547492461856953648644492410443207713449470495658467885098743394422125448770664780915884607499887124007652170575179788341662562494075890697040002812104276217711177780531531714101170466659914669798731761356006708748071013179523689427521948435305678300228785699782977834784587822891109762500302696156170025046433824377648610283831268330372429267526311653392473167111211588186385133162038400522216579128667529465490681131715993432359734949850904094762132229810172610705961164562990981629055520852479035240602017279974717534277759277862561943208275051312181562855122248093947123414517022373580577278616008688382952304592647878017889921990270776903895321968198615143780314997411069260886742962267575605231727775203536139362"
 --
--- >>> continuedFractionToQI (0,Cyc [83,78,65,75,69] 32 [66,65,68,71,69,82])
+-- >>> continuedFractionToQI (0,CycList [83,78,65,75,69] [32,66,65,68,71,69,82])
 -- qi 987601513930253257378987883 1 14116473325908285531353005 81983584717737887813195873886
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
 continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
   where
-    go (NonCyc as)   = goNonCyc as qiZero
-    go (Cyc as b bs) = goNonCyc as (goCyc (b:bs))
+    go (CycList as bs) = goNonCyc as (if null bs then qiZero else goCyc bs)
 
     goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddI (goNonCyc is final) i)
     goNonCyc []              final = final
@@ -715,15 +714,15 @@ continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
 -- @5\/2 = 2 + 1\/2 = [2; 2]@.
 --
 -- >>> qiToContinuedFraction (qi 5 0 0 2)
--- (2,NonCyc [2])
+-- (2,CycList [2] [])
 --
 -- The golden ratio is @(1 + √5)\/2@. We can compute the corresponding PCF.
 --
 -- >>> qiToContinuedFraction (qi 1 1 5 2)
--- (1,Cyc [] 1 [])
+-- (1,CycList [] [1])
 --
 -- >>> qiToContinuedFraction (qi 987601513930253257378987883 1 14116473325908285531353005 81983584717737887813195873886)
--- (0,Cyc [83,78,65,75,69] 32 [66,65,68,71,69,82])
+-- (0,CycList [83,78,65,75,69] [32,66,65,68,71,69,82])
 qiToContinuedFraction :: QI
                       -> (Integer, CycList Integer)
 qiToContinuedFraction num
@@ -731,9 +730,9 @@ qiToContinuedFraction num
       case break isLoopQI cfs of
         (preLoop, ~(i:postLoop)) ->
           let is = takeWhile (not . isLoopQI) postLoop
-          in  (i0, Cyc (map snd preLoop) (snd i) (map snd is))
+          in  (i0, CycList (map snd preLoop) (map snd $ i : is))
   | otherwise =
-      (i0, NonCyc (map snd cfs))
+      (i0, CycList (map snd cfs) [])
   where
     (i0, cfs) = qiToContinuedFractionList num
 

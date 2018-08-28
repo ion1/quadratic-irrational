@@ -164,12 +164,9 @@ tests =
       ]
     , testGroup "Continued fractions"
       [ testProperty "qiToContinuedFraction/continuedFractionToQI" $ \n ->
-          let cf  = qiToContinuedFraction n
-              len = case cf of
-                      (_, NonCyc _)   -> 0
-                      (_, Cyc _ _ xs) -> length xs
+          let cf@(_, CycList _ xs)  = qiToContinuedFraction n
           -- Limit the length of the periodic part for speed.
-          in (len <= 100) ==>
+          in (length xs <= 100) ==>
                n === continuedFractionToQI cf
 
       , testProperty "continuedFractionApproximate" $ \n ->
