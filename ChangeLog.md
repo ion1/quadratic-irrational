@@ -1,3 +1,7 @@
+# 0.0.6 (2018-08-29)
+
+* Support GHC up to 8.6.1.
+
 # 0.0.5 (2014-03-28)
 
 * Add an `Ord` instance.
