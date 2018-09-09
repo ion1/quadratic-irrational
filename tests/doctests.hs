@@ -2,9 +2,8 @@
 
 module Main (main) where
 
-import Control.Applicative (empty)
 import Control.Monad (guard)
-import Control.Monad.List (ListT (ListT), liftIO,  runListT)
+import Data.Foldable (toList)
 import Data.List (isSuffixOf)
 import System.Directory (doesDirectoryExist, doesFileExist,
   getDirectoryContents)
@@ -17,17 +16,22 @@ main = do
   doctest ("-isrc" : sources)
 
 findSources :: FilePath -> IO [FilePath]
-findSources dir = runListT (goDir dir)
+findSources = goDir
   where
-    goItem :: FilePath -> FilePath -> ListT IO FilePath
-    goItem _ ('.':_) = empty
+    goItem :: FilePath -> FilePath -> IO [FilePath]
+    goItem _ ('.':_) = pure []
     goItem parent name = do
       let path = parent </> name
-      isDir  <- liftIO (doesDirectoryExist path)
-      isFile <- liftIO (doesFileExist path)
-      if | isDir     -> goDir  path
-         | isFile    -> goFile path
-         | otherwise -> empty
+      isDir  <- doesDirectoryExist path
+      isFile <- doesFileExist path
+      if | isDir     -> goDir path
+         | isFile    -> pure $ toList $ goFile path
+         | otherwise -> pure []
 
-    goDir  path = goItem path =<< ListT (getDirectoryContents path)
+    goDir :: FilePath -> IO [FilePath]
+    goDir path = do
+      items <- getDirectoryContents path
+      concat <$> traverse (goItem path) items
+
+    goFile :: FilePath -> Maybe FilePath
     goFile path = path <$ guard (".hs" `isSuffixOf` path)
