@@ -69,7 +69,7 @@ module Numeric.QuadraticIrrational
   , module Numeric.QuadraticIrrational.CyclicList
   ) where
 
-import Control.Monad.State (evalState, gets, modify)
+import Control.Monad.Trans.State (evalState, gets, modify)
 import Data.Foldable (toList)
 import Data.List (foldl')
 import Data.Maybe (fromMaybe)
