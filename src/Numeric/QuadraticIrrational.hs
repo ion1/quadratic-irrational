@@ -1,5 +1,8 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ViewPatterns     #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving  #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 -- |
 -- Module      : Numeric.QuadraticIrrational
@@ -57,7 +60,7 @@ module Numeric.QuadraticIrrational
   , -- * Lenses
     _qi, _qi', _qiABD, _qiA, _qiB, _qiC, _qiD
   , -- * Numerical operations
-    qiZero, qiOne, qiIsZero
+    qiIsZero
   , qiToFloat
   , qiAddI, qiSubI, qiMulI, qiDivI
   , qiAddR, qiSubR, qiMulR, qiDivR
@@ -73,8 +76,11 @@ import Control.Monad.Trans.State (evalState, gets, modify)
 import Data.Foldable (toList)
 import Data.List (foldl')
 import Data.Maybe (fromMaybe)
+import Data.Proxy
 import Data.Ratio ((%), denominator, numerator)
+import Data.Semigroup
 import qualified Data.Set as Set (empty, insert, member)
+import Data.Type.Equality
 import Math.NumberTheory.Powers.Squares (integerSquareRoot)
 import Math.NumberTheory.Primes.Factorisation (factorise)
 import Text.Read (Lexeme (Ident), Read (readListPrec, readPrec),
@@ -82,19 +88,23 @@ import Text.Read (Lexeme (Ident), Read (readListPrec, readPrec),
 
 import Numeric.QuadraticIrrational.CyclicList
 import Numeric.QuadraticIrrational.Internal.Lens
+import Numeric.QuadraticIrrational.Ring
+import Numeric.QuadraticIrrational.SquareFree
 
 -- $setup
 -- >>> import Data.Number.CReal
 
--- | @(a + b √c) \/ d@
-data QI = QI !Integer
-             !Integer
-             !Integer
-             !Integer
-  deriving (Eq)
+-- | @(a + b √c)@
+data QI where
+  QI :: KnownSquareFree c => QuadExt c Rational -> QI
+
+instance Eq QI where
+  (QI (q1 :: QuadExt c1 Rational)) == (QI (q2 :: QuadExt c2 Rational)) = case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
+      Nothing   -> False
+      Just Refl -> q1 == q2
 
 instance Show QI where
-  showsPrec p (QI a b c d) = showParen (p > 10)
+  showsPrec p q = runQI q $ \a b c d -> showParen (p > 10)
                            $ showString "qi " . showsPrec 11 a
                            . showChar   ' '   . showsPrec 11 b
                            . showChar   ' '   . showsPrec 11 c
@@ -110,61 +120,6 @@ instance Read QI where
 
   readListPrec = readListPrecDefault
 
-instance Ord QI where
-  compare (QI a b c d) (QI a' b' c' d') = res
-    where
-      -- (a + b √c)/d   ⋛ (a' + b' √c')/d'
-      -- (a + b √c) d'  ⋛ (a' + b' √c') d
-      -- a d' + b d' √c ⋛ a' d + b' d √c'
-      -- a d' − a' d    ⋛ b' d √c' − b d' √c
-      --
-      -- let i = a d' − a' d
-      --     j = b' d √c'
-      --     k = b d' √c
-      i = a * d' - a' * d
-      sqJ = sq b' * sq d  * c'
-      sqK = sq b  * sq d' * c
-
-      -- i ⋛ j − k
-      --
-      -- sign (b' d √c') = sign b' because d  ≥ 0 and c' ≥ 0
-      -- sign (b d' √c)  = sign b  because d' ≥ 0 and c  ≥ 0
-      --
-      -- if j − k < 0 then (sign b') j² − (sign b) k² < 0
-      --
-      -- (sign i) |i| ⋛ sign ((sign b') j² − (sign b) k²) |j − k|
-      --
-      -- let snL = sign i
-      --     snR = sign ((sign b') j² − (sign b) k²)
-      snL = signum i
-      snR = signum (signum b' * sqJ - signum b * sqK)
-
-      -- snL |i|                ⋛ snR |j − k|
-      -- snL i²                 ⋛ snR (j − k)²
-      -- snL i²                 ⋛ snR (j² + k² − 2 j k)
-      -- snL i² − snR (j² + k²) ⋛ snR (−2) j k
-      -- snL i² − snR (j² + k²) ⋛ snR (−2) b b' d d' √c √c'
-      --
-      -- let q = snL i² − snR (j² + k²)
-      --     r = snR (−2) b b' d d' √c √c'
-      q = snL * sq i - snR * (sqJ + sqK)
-      sqR = 4 * sq b * sq b' * sq d * sq d' * c * c'
-
-      -- q ⋛ r
-      --
-      -- sign (snR (−2) b b' d d' √c √c') = sign (snR (−2) b b')
-      --
-      -- let snL' = sign q
-      --     snR' = sign (snR (−2) b b')
-      snL' = signum q
-      snR' = signum (snR * (-2) * b * b')
-
-      -- snL' |q| ⋛ snR' |r|
-      -- snL' q²  ⋛ snR' r²
-      res = compare (snL' * sq q) (snR' * sqR)
-
-      sq x = x*x
-
 type QITuple = (Integer, Integer, Integer, Integer)
 
 -- | Given @a@, @b@, @c@ and @d@ such that @n = (a + b √c)\/d@, constuct a 'QI'
@@ -173,18 +128,18 @@ type QITuple = (Integer, Integer, Integer, Integer)
 -- >>> qi 3 4 5 6
 -- qi 3 4 5 6
 --
+-- >>> qi 3 0 42 1
+-- qi 3 0 42 1
+--
 -- The fractions are reduced:
 --
 -- >>> qi 30 40 5 60
 -- qi 3 4 5 6
 --
--- If @b = 0@ then @c@ is zeroed and vice versa:
---
--- >>> qi 3 0 42 1
--- qi 3 0 0 1
+-- If @c = 0@ then @b@ is zeroed and @c@ is put equal to 2:
 --
 -- >>> qi 3 42 0 1
--- qi 3 0 0 1
+-- qi 3 0 2 1
 --
 -- The @b √c@ term is simplified:
 --
@@ -194,33 +149,30 @@ type QITuple = (Integer, Integer, Integer, Integer)
 -- If @c = 1@ (after simplification) then @b@ is moved to @a@:
 --
 -- >>> qi 1 5 (2*2) 1
--- qi 11 0 0 1
+-- qi 11 0 2 1
 qi :: Integer  -- ^ a
    -> Integer  -- ^ b
    -> Integer  -- ^ c
    -> Integer  -- ^ d
    -> QI
-qi a b (nonNegative "qi" -> c) (nonZero "qi" -> d)
-  | b == 0    = reduceCons a 0 0 d
-  | c == 0    = reduceCons a 0 0 d
-  | c == 1    = reduceCons (a + b) 0 0 d
-  | otherwise = simplifyReduceCons a b c d
+qi a _ 0 (nonZero "qi" -> d) = simplifyReduceCons a 0 2 d
+qi a b c (nonZero "qi" -> d) = simplifyReduceCons a b c d
 {-# INLINE qi #-}
 
 -- Construct a 'QI' without simplifying @b √c@. Make sure it has already been
 -- simplified.
 qiNoSimpl :: Integer -> Integer -> Integer -> Integer -> QI
-qiNoSimpl a b (nonNegative "qiNoSimpl" -> c) (nonZero "qiNoSimpl" -> d)
-  | b == 0    = reduceCons a 0 0 d
-  | c == 0    = reduceCons a 0 0 d
-  | c == 1    = reduceCons (a + b) 0 0 d
+qiNoSimpl a b (nonZero "qiNoSimpl" -> c) (nonZero "qiNoSimpl" -> d)
+  | b == 0    = reduceCons a 0 2 d
+  | c == 0    = reduceCons a 0 2 d
+  | c == 1    = reduceCons (a + b) 0 2 d
   | otherwise = reduceCons a b c d
 {-# INLINE qiNoSimpl #-}
 
 -- Simplify @b √c@ before constructing a 'QI'.
 simplifyReduceCons :: Integer -> Integer -> Integer -> Integer -> QI
 simplifyReduceCons a b (nonZero "simplifyReduceCons" -> c) d
-  | c' == 1   = reduceCons (a + b') 0 0 d
+  | c' == 1   = reduceCons (a + b') 0 2 d
   | otherwise = reduceCons a b' c' d
   where ~(b', c') = separateSquareFactors b c
 {-# INLINE simplifyReduceCons #-}
@@ -228,7 +180,7 @@ simplifyReduceCons a b (nonZero "simplifyReduceCons" -> c) d
 -- | Given @b@ and @c@ such that @n = b √c@, return a potentially simplified
 -- @(b, c)@.
 separateSquareFactors :: Integer -> Integer -> (Integer, Integer)
-separateSquareFactors b (nonNegative "separateSquareFactors" -> c) =
+separateSquareFactors b (nonZero "separateSquareFactors" -> c) =
   case foldl' go (1,1) (factorise c) of
     ~(bMul, c') -> (b*bMul, c')
   where
@@ -241,9 +193,9 @@ separateSquareFactors b (nonNegative "separateSquareFactors" -> c) =
 
 -- Reduce the @a@, @b@, @d@ factors before constructing a 'QI'.
 reduceCons :: Integer -> Integer -> Integer -> Integer -> QI
-reduceCons a b c (nonZero "reduceCons" -> d) =
-  QI (a `quot` q) (b `quot` q) c (d `quot` q)
-  where q = signum d * (a `gcd` b `gcd` d)
+reduceCons a b c (nonZero "reduceCons" -> d) = case someSquareFreeVal c of
+  Just (SomeSquareFree (Proxy :: Proxy c)) -> QI (QuadExt (a % d) (b % d) :: QuadExt c Rational)
+  Nothing -> error $ "reduceCons: square root term is not square free and equals to " ++ show c
 {-# INLINE reduceCons #-}
 
 -- | Given @a@, @b@ and @c@ such that @n = a + b √c@, constuct a 'QI'
@@ -255,7 +207,7 @@ qi' :: Rational  -- ^ a
     -> Rational  -- ^ b
     -> Integer   -- ^ c
     -> QI
-qi' a b (nonNegative "qi'" -> c) = n
+qi' a b c = n
   where
     -- (aN/aD) + (bN/bD) √c = ((aN bD) + (bN aD) √c) / (aD bD)
     n = qi (aN*bD) (bN*aD) c (aD*bD)
@@ -268,7 +220,12 @@ qi' a b (nonNegative "qi'" -> c) = n
 -- >>> runQI (qi 3 4 5 6) (\a b c d -> (a,b,c,d))
 -- (3,4,5,6)
 runQI :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
-runQI (QI a b c d) f = f a b c d
+runQI (QI (QuadExt a b :: QuadExt c Rational)) f = f a' b' c d
+  where
+    c = squareFreeVal (Proxy :: Proxy c)
+    d = lcm (denominator a) (denominator b)
+    a' = numerator a * (d `quot` denominator a)
+    b' = numerator b * (d `quot` denominator b)
 {-# INLINE runQI #-}
 
 -- | Given @n@ and @f@ such that @n = a + b √c@, run @f a b c@.
@@ -276,7 +233,9 @@ runQI (QI a b c d) f = f a b c d
 -- >>> runQI' (qi' 0.5 0.7 2) (\a b c -> (a, b, c))
 -- (1 % 2,7 % 10,2)
 runQI' :: QI -> (Rational -> Rational -> Integer -> a) -> a
-runQI' (QI a b c d) f = f (a % d) (b % d) c
+runQI' (QI (QuadExt a b :: QuadExt c Rational)) f = f a b c
+  where
+    c = squareFreeVal (Proxy :: Proxy c)
 {-# INLINE runQI' #-}
 
 -- | Given @n@ such that @n = (a + b √c)\/d@, return @(a, b, c, d)@.
@@ -378,29 +337,12 @@ _qiD :: Lens' QI Integer
 _qiD = _qiABD . go
   where go f ~(a,b,d) = (\d' -> (a,b,d')) <$> f d
 
--- | The constant zero.
---
--- >>> qiZero
--- qi 0 0 0 1
-qiZero :: QI
-qiZero = qi 0 0 0 1
-{-# INLINE qiZero #-}
-
--- | The constant one.
---
--- >>> qiOne
--- qi 1 0 0 1
-qiOne :: QI
-qiOne  = qi 1 0 0 1
-{-# INLINE qiOne #-}
-
 -- | Check if the value is zero.
 --
--- >>> map qiIsZero [qiZero, qiOne, qiSubR (qi 7 0 0 2) 3.5]
+-- >>> map qiIsZero [qi 0 0 0 1, qi 1 0 0 1, qiSubR (qi 7 0 0 2) 3.5]
 -- [True,False,True]
 qiIsZero :: QI -> Bool
--- If b = 0 then c = 0 and vice versa, guaranteed by the constructor.
-qiIsZero (unQI -> ~(a,b,_,_)) = a == 0 && b == 0
+qiIsZero (QI q) = q == 0
 {-# INLINE qiIsZero #-}
 
 -- | Convert a 'QI' number into a 'Floating' one.
@@ -417,8 +359,7 @@ qiToFloat (unQI -> ~(a,b,c,d)) =
 -- >>> qi 3 4 5 6 `qiAddI` 1
 -- qi 9 4 5 6
 qiAddI :: QI -> Integer -> QI
-qiAddI n x = over _qiABD go n
-  where go ~(a,b,d) = a `seq` b `seq` d `seq` x `seq` (a + d*x, b, d)
+qiAddI (QI q) x = QI (q + fromInteger x)
 {-# INLINE qiAddI #-}
 
 -- | Add a 'Rational' to a 'QI'.
@@ -426,14 +367,7 @@ qiAddI n x = over _qiABD go n
 -- >>> qi 3 4 5 6 `qiAddR` 1.2
 -- qi 51 20 5 30
 qiAddR :: QI -> Rational -> QI
-qiAddR n x = over _qiABD go n
-  where
-    -- n = (a + b √c)/d + xN/xD
-    -- n = ((a + b √c) xD)/(d xD) + (d xN)/(d xD)
-    -- n = ((a xD + d xN) + b xD √c)/(d xD)
-    go ~(a,b,d) =
-      a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xD + d*xN, b*xD, d*xD)
-    (xN, xD) = (numerator x, denominator x)
+qiAddR (QI q) x = QI (q + fromRational x)
 {-# INLINE qiAddR #-}
 
 -- | Subtract an 'Integer' from a 'QI'.
@@ -441,7 +375,7 @@ qiAddR n x = over _qiABD go n
 -- >>> qi 3 4 5 6 `qiSubI` 1
 -- qi (-3) 4 5 6
 qiSubI :: QI -> Integer -> QI
-qiSubI n x = qiAddI n (negate x)
+qiSubI (QI q) x = QI (q - fromInteger x)
 {-# INLINE qiSubI #-}
 
 -- | Subtract a 'Rational' from a 'QI'.
@@ -449,7 +383,7 @@ qiSubI n x = qiAddI n (negate x)
 -- >>> qi 3 4 5 6 `qiSubR` 1.2
 -- qi (-21) 20 5 30
 qiSubR :: QI -> Rational -> QI
-qiSubR n x = qiAddR n (negate x)
+qiSubR (QI q) x = QI (q - fromRational x)
 {-# INLINE qiSubR #-}
 
 -- | Multiply a 'QI' by an 'Integer'.
@@ -457,8 +391,7 @@ qiSubR n x = qiAddR n (negate x)
 -- >>> qi 3 4 5 6 `qiMulI` 2
 -- qi 3 4 5 3
 qiMulI :: QI -> Integer -> QI
-qiMulI n x = over _qiABD go n
-  where go ~(a,b,d) = a `seq` b `seq` d `seq` x `seq` (a*x, b*x, d)
+qiMulI (QI q) x = QI (q * fromInteger x)
 {-# INLINE qiMulI #-}
 
 -- | Multiply a 'QI' by a 'Rational'.
@@ -466,29 +399,23 @@ qiMulI n x = over _qiABD go n
 -- >>> qi 3 4 5 6 `qiMulR` 0.5
 -- qi 3 4 5 12
 qiMulR :: QI -> Rational -> QI
-qiMulR n x = over _qiABD go n
-  where
-    -- n = (a + b √c)/d xN/xD
-    -- n = (a xN + b xN √c)/(d xD)
-    go ~(a,b,d) = a `seq` b `seq` d `seq` xN `seq` xD `seq` (a*xN, b*xN, d*xD)
-    (xN, xD) = (numerator x, denominator x)
+qiMulR (QI q) x = QI (q * fromRational x)
 {-# INLINE qiMulR #-}
 
--- | Divice a 'QI' by an 'Integer'.
+-- | Divide a 'QI' by an 'Integer'.
 --
 -- >>> qi 3 4 5 6 `qiDivI` 2
 -- qi 3 4 5 12
 qiDivI :: QI -> Integer -> QI
-qiDivI n (nonZero "qiDivI" -> x) = over _qiABD go n
-  where go ~(a,b,d) = a `seq` b `seq` d `seq` x `seq` (a, b, d*x)
+qiDivI (QI q) (nonZero "qiDivI" -> x) = QI (q * fromRational (1 % x))
 {-# INLINE qiDivI #-}
 
--- | Divice a 'QI' by a 'Rational'.
+-- | Divide a 'QI' by a 'Rational'.
 --
 -- >>> qi 3 4 5 6 `qiDivR` 0.5
 -- qi 3 4 5 3
 qiDivR :: QI -> Rational -> QI
-qiDivR n (nonZero "qiDivR" -> x) = qiMulR n (recip x)
+qiDivR (QI q) (nonZero "qiDivR" -> x) = QI (q * fromRational (recip x))
 {-# INLINE qiDivR #-}
 
 -- | Negate a 'QI'.
@@ -496,35 +423,26 @@ qiDivR n (nonZero "qiDivR" -> x) = qiMulR n (recip x)
 -- >>> qiNegate (qi 3 4 5 6)
 -- qi (-3) (-4) 5 6
 qiNegate :: QI -> QI
-qiNegate n = over _qiABD go n
-  where go ~(a,b,d) = a `seq` b `seq` d `seq` (negate a, negate b, d)
+qiNegate (QI q) = QI (negate q)
 {-# INLINE qiNegate #-}
 
 -- | Compute the reciprocal of a 'QI'.
 --
 -- >>> qiRecip (qi 5 0 0 2)
--- Just (qi 2 0 0 5)
+-- Just (qi 2 0 2 5)
 --
 -- >>> qiRecip (qi 0 1 5 2)
 -- Just (qi 0 2 5 5)
 --
--- >>> qiRecip qiZero
+-- >>> qiRecip (qi 0 0 0 1)
 -- Nothing
 qiRecip :: QI -> Maybe QI
-qiRecip n@(unQI -> ~(a,b,c,d))
-  -- 1/((a + b √c)/d)                       =
-  -- d/(a + b √c)                           =
-  -- d (a − b √c) / ((a + b √c) (a − b √c)) =
-  -- d (a − b √c) / (a² − b² c)             =
-  -- (a d − b d √c) / (a² − b² c)
-  | qiIsZero n = Nothing
-  | denom == 0 = error ("qiRecip: Failed for " ++ show n)
-  | otherwise  = Just (set _qiABD (a * d, negate (b * d), denom) n)
-  where denom = (a*a - b*b * c)
+qiRecip (QI 0) = Nothing
+qiRecip (QI q) = Just (QI (recip q))
 
 -- | Add two 'QI's if the square root terms are the same or zeros.
 --
--- >>> qi 3 4 5 6 `qiAdd` qiOne
+-- >>> qi 3 4 5 6 `qiAdd` qi 1 0 5 1
 -- Just (qi 9 4 5 6)
 --
 -- >>> qi 3 4 5 6 `qiAdd` qi 3 4 5 6
@@ -533,34 +451,33 @@ qiRecip n@(unQI -> ~(a,b,c,d))
 -- >>> qi 0 1 5 1 `qiAdd` qi 0 1 6 1
 -- Nothing
 qiAdd :: QI -> QI -> Maybe QI
-qiAdd n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
-  -- n = (a + b √c)/d + (a' + b' √c')/d'
-  -- n = ((a + b √c) d' + (a' + b' √c') d)/(d d')
-  -- if c = c' then n = ((a d' + a' d) + (b d' + b' d) √c)/(d d')
-  | c  == 0   = Just (set _qiABD (a*d' + a'*d,        b'*d, d*d') n')
-  | c' == 0   = Just (set _qiABD (a*d' + a'*d, b*d'       , d*d') n)
-  | c  == c'  = Just (set _qiABD (a*d' + a'*d, b*d' + b'*d, d*d') n)
-  | otherwise = Nothing
+qiAdd (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
+  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
+    Nothing   -> Nothing
+    Just Refl -> Just (QI (q1 + q2))
 
 -- | Subtract two 'QI's if the square root terms are the same or zeros.
 --
--- >>> qi 3 4 5 6 `qiSub` qiOne
+-- >>> qi 3 4 5 6 `qiSub` qi 1 0 5 1
 -- Just (qi (-3) 4 5 6)
 --
 -- >>> qi 3 4 5 6 `qiSub` qi 3 4 5 6
--- Just (qi 0 0 0 1)
+-- Just (qi 0 0 5 1)
 --
 -- >>> qi 0 1 5 1 `qiSub` qi 0 1 6 1
 -- Nothing
 qiSub :: QI -> QI -> Maybe QI
-qiSub n n' = qiAdd n (qiNegate n')
+qiSub (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
+  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
+    Nothing   -> Nothing
+    Just Refl -> Just (QI (q1 - q2))
 
 -- | Multiply two 'QI's if the square root terms are the same or zeros.
 --
--- >>> qi 3 4 5 6 `qiMul` qiZero
--- Just (qi 0 0 0 1)
+-- >>> qi 3 4 5 6 `qiMul` qi 0 0 5 1
+-- Just (qi 0 0 5 1)
 --
--- >>> qi 3 4 5 6 `qiMul` qiOne
+-- >>> qi 3 4 5 6 `qiMul` qi 1 0 5 1
 -- Just (qi 3 4 5 6)
 --
 -- >>> qi 3 4 5 6 `qiMul` qi 3 4 5 6
@@ -569,27 +486,21 @@ qiSub n n' = qiAdd n (qiNegate n')
 -- >>> qi 0 1 5 1 `qiMul` qi 0 1 6 1
 -- Nothing
 qiMul :: QI -> QI -> Maybe QI
-qiMul n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
-  -- n = (a + b √c)/d (a' + b' √c')/d'
-  -- n = (a a' + a b' √c' + a' b √c + b b' √c √c')/(d d')
-  -- if c = 0  then n = (a a' + a b' √c')/(d d')
-  -- if c' = 0 then n = (a a' + a' b √c)/(d d')
-  -- if c = c' then n = ((a a' + b b' c) + (a b' + a' b) √c)/(d d')
-  | c  == 0   = Just (set _qiABD (a*a'         , a*b'       , d*d') n')
-  | c' == 0   = Just (set _qiABD (a*a'         ,        a'*b, d*d') n)
-  | c  == c'  = Just (set _qiABD (a*a' + b*b'*c, a*b' + a'*b, d*d') n)
-  | otherwise = Nothing
+qiMul (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
+  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
+    Nothing   -> Nothing
+    Just Refl -> Just (QI (q1 * q2))
 
 -- | Divide two 'QI's if the square root terms are the same or zeros.
 --
--- >>> qi 3 4 5 6 `qiDiv` qiZero
+-- >>> qi 3 4 5 6 `qiDiv` qi 0 0 5 1
 -- Nothing
 --
--- >>> qi 3 4 5 6 `qiDiv` qiOne
+-- >>> qi 3 4 5 6 `qiDiv` qi 1 0 5 1
 -- Just (qi 3 4 5 6)
 --
 -- >>> qi 3 4 5 6 `qiDiv` qi 3 4 5 6
--- Just (qi 1 0 0 1)
+-- Just (qi 1 0 5 1)
 --
 -- >>> qi 3 4 5 6 `qiDiv` qi 0 1 5 1
 -- Just (qi 20 3 5 30)
@@ -597,12 +508,16 @@ qiMul n@(unQI -> ~(a,b,c,d)) n'@(unQI -> ~(a',b',c',d'))
 -- >>> qi 0 1 5 1 `qiDiv` qi 0 1 6 1
 -- Nothing
 qiDiv :: QI -> QI -> Maybe QI
-qiDiv n n' = qiMul n =<< qiRecip n'
+qiDiv _ (QI 0) = Nothing
+qiDiv (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
+  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
+    Nothing   -> Nothing
+    Just Refl -> Just (QI (q1 / q2))
 
 -- | Exponentiate a 'QI' to an 'Integer' power.
 --
 -- >>> qi 3 4 5 6 `qiPow` 0
--- qi 1 0 0 1
+-- qi 1 0 5 1
 --
 -- >>> qi 3 4 5 6 `qiPow` 1
 -- qi 3 4 5 6
@@ -610,23 +525,7 @@ qiDiv n n' = qiMul n =<< qiRecip n'
 -- >>> qi 3 4 5 6 `qiPow` 2
 -- qi 89 24 5 36
 qiPow :: QI -> Integer -> QI
-qiPow num (nonNegative "qiPow" -> pow) = go num pow
-  where
-    go _ 0 = qiOne
-    go n 1 = n
-    go n p
-      | even p    = go  (sudoQIMul n n) (p     `div` 2)
-      | otherwise = go' (sudoQIMul n n) ((p-1) `div` 2) n
-
-    -- Like go but multiplied with n'.
-    go' _ 0 n' = n'
-    go' n 1 n' = sudoQIMul n n'
-    go' n p n'
-      | even p    = go' (sudoQIMul n n) (p     `div` 2) n'
-      | otherwise = go' (sudoQIMul n n) ((p-1) `div` 2) (sudoQIMul n n')
-
-    -- Multiplying a QI with its own power will always succeed.
-    sudoQIMul n n' = case qiMul n n' of ~(Just m) -> m
+qiPow (QI q) pow = QI (getProduct (stimes pow (Product q)))
 
 -- | Compute the floor of a 'QI'.
 --
@@ -654,7 +553,7 @@ qiFloor (unQI -> ~(a,b,c,d)) =
 -- @[2; 2] = 2 + 1\/2 = 5\/2@.
 --
 -- >>> continuedFractionToQI (2,CycList [2] [])
--- qi 5 0 0 2
+-- qi 5 0 2 2
 --
 -- The golden ratio is @[1; 1, 1, …]@.
 --
@@ -666,7 +565,7 @@ qiFloor (unQI -> ~(a,b,c,d)) =
 continuedFractionToQI :: (Integer, CycList Integer) -> QI
 continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
   where
-    go (CycList as bs) = goNonCyc as (if null bs then qiZero else goCyc bs)
+    go (CycList as bs) = goNonCyc as (if null bs then qi 0 0 0 1 else goCyc bs)
 
     goNonCyc ((pos -> i):is) final = sudoQIRecip (qiAddI (goNonCyc is final) i)
     goNonCyc []              final = final
@@ -772,10 +671,6 @@ iSqrtBounds n = (low, high)
     low = integerSquareRoot n
     high | low*low == n = low
          | otherwise    = low + 1
-
-nonNegative :: (Num a, Ord a, Show a) => String -> a -> a
-nonNegative name = validate name "non-negative" (>= 0)
-{-# INLINE nonNegative #-}
 
 positive :: (Num a, Ord a, Show a) => String -> a -> a
 positive name = validate name "positive" (> 0)
