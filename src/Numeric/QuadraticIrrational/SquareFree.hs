@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeOperators       #-}
 
 module Numeric.QuadraticIrrational.SquareFree
-  ( SquareFree(..)
+  ( SquareFree()
   , KnownSquareFree(..)
   , SomeSquareFree(..)
   , someSquareFreeVal
