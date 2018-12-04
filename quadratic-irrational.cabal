@@ -107,5 +107,6 @@ test-suite doctests
                , filepath
                , mtl
                , numbers
+               , arithmoi
   default-language: Haskell2010
   ghc-options: -threaded -Wall
