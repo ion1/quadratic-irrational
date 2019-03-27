@@ -184,7 +184,7 @@ separateSquareFactors b (nonZero "separateSquareFactors" -> c) =
   case foldl' go (1,1) (factorise c) of
     ~(bMul, c') -> (b*bMul, c')
   where
-    go :: (Integer, Integer) -> (Integer, Int) -> (Integer, Integer)
+    go :: Integral a => (Integer, Integer) -> (Integer, a) -> (Integer, Integer)
     go ~(i, j) ~(fac, pow) =
       i `seq` j `seq` fac `seq` pow `seq`
         if even pow
