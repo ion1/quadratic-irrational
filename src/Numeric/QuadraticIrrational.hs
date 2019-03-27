@@ -138,6 +138,8 @@ type QITuple = (Integer, Integer, Integer, Integer)
 --
 -- >>> qi 30 40 5 60
 -- qi 3 4 5 6
+-- >>> qi (-30) (-40) (-5) (-60)
+-- qi 3 4 (-5) 6
 --
 -- If @c = 0@ then @b@ is zeroed and @c@ is put equal to 2:
 --
@@ -206,6 +208,8 @@ reduceCons a b c (nonZero "reduceCons" -> d) = case someSquareFreeVal c of
 --
 -- >>> qi' 0.5 0.7 2
 -- qi 5 7 2 10
+-- >>> qi' 0.3 0.4 (-3)
+-- qi 3 4 (-3) 10
 qi' :: Rational  -- ^ a
     -> Rational  -- ^ b
     -> Integer   -- ^ c
@@ -222,6 +226,8 @@ qi' a b c = n
 --
 -- >>> runQI (qi 3 4 5 6) (\a b c d -> (a,b,c,d))
 -- (3,4,5,6)
+-- >>> runQI (qi 1 1 (-1) 1) (\a b c d -> (a,b,c,d))
+-- (1,1,-1,1)
 runQI :: QI -> (Integer -> Integer -> Integer -> Integer -> a) -> a
 runQI (QI (QuadExt a b :: QuadExt c Rational)) f = f a' b' c d
   where
@@ -235,6 +241,8 @@ runQI (QI (QuadExt a b :: QuadExt c Rational)) f = f a' b' c d
 --
 -- >>> runQI' (qi' 0.5 0.7 2) (\a b c -> (a, b, c))
 -- (1 % 2,7 % 10,2)
+-- >>> runQI' (qi' 0.3 0.4 (-3)) (\a b c -> (a, b, c))
+-- (3 % 10,2 % 5,-3)
 runQI' :: QI -> (Rational -> Rational -> Integer -> a) -> a
 runQI' (QI (QuadExt a b :: QuadExt c Rational)) f = f a b c
   where
@@ -245,6 +253,8 @@ runQI' (QI (QuadExt a b :: QuadExt c Rational)) f = f a b c
 --
 -- >>> unQI (qi 3 4 5 6)
 -- (3,4,5,6)
+-- >>> unQI (qi 1 1 (-1) 1)
+-- (1,1,-1,1)
 unQI :: QI -> (Integer, Integer, Integer, Integer)
 unQI n = runQI n (,,,)
 {-# INLINE unQI #-}
@@ -253,6 +263,8 @@ unQI n = runQI n (,,,)
 --
 -- >>> unQI' (qi' 0.5 0.7 2)
 -- (1 % 2,7 % 10,2)
+-- >>> unQI' (qi' 0.3 0.4 (-3))
+-- (3 % 10,2 % 5,-3)
 unQI' :: QI -> (Rational, Rational, Integer)
 unQI' n = runQI' n (,,)
 {-# INLINE unQI' #-}
@@ -261,9 +273,13 @@ unQI' n = runQI' n (,,)
 --
 -- >>> view _qi (qi 3 4 5 6)
 -- (3,4,5,6)
+-- >>> view _qi (qi 1 1 (-1) 1)
+-- (1,1,-1,1)
 --
 -- >>> over _qi (\(a,b,c,d) -> (a+10, b+10, c+10, d+10)) (qi 3 4 5 6)
 -- qi 13 14 15 16
+-- >>> over _qi (\(a,b,c,d) -> (a+10, b+10, c+10, d+10)) (qi 1 1 (-1) 1)
+-- qi 4 0 2 1
 _qi :: Lens' QI (Integer, Integer, Integer, Integer)
 _qi f n = (\ ~(a',b',c',d') -> qi a' b' c' d') <$> f (unQI n)
 {-# INLINE _qi #-}
@@ -272,9 +288,13 @@ _qi f n = (\ ~(a',b',c',d') -> qi a' b' c' d') <$> f (unQI n)
 --
 -- >>> view _qi' (qi' 0.5 0.7 2)
 -- (1 % 2,7 % 10,2)
+-- >>> view _qi' (qi' 0.3 0.4 (-3))
+-- (3 % 10,2 % 5,-3)
 --
 -- >>> over _qi' (\(a,b,c) -> (a/5, b/6, c*3)) (qi 3 4 5 6)
 -- qi 9 10 15 90
+-- >>> over _qi' (\(a,b,c) -> (a/5, b/6, c*3)) (qi 1 1 (-1) 1)
+-- qi 6 5 (-3) 30
 _qi' :: Lens' QI (Rational, Rational, Integer)
 _qi' f n = (\ ~(a',b',c') -> qi' a' b' c') <$> f (unQI' n)
 {-# INLINE _qi' #-}
@@ -284,9 +304,13 @@ _qi' f n = (\ ~(a',b',c') -> qi' a' b' c') <$> f (unQI' n)
 --
 -- >>> view _qiABD (qi 3 4 5 6)
 -- (3,4,6)
+-- >>> view _qiABD (qi 1 1 (-1) 1)
+-- (1,1,1)
 --
 -- >>> over _qiABD (\(a,b,d) -> (a+10, b+10, d+10)) (qi 3 4 5 6)
 -- qi 13 14 5 16
+-- >>> over _qiABD (\(a,b,d) -> (a+10, b+10, d+10)) (qi 1 1 (-1) 1)
+-- qi 1 1 (-1) 1
 _qiABD :: Lens' QI (Integer, Integer, Integer)
 _qiABD f (unQI -> ~(a,b,c,d)) =
   (\ ~(a',b',d') -> qiNoSimpl a' b' c d') <$> f (a,b,d)
@@ -297,9 +321,13 @@ _qiABD f (unQI -> ~(a,b,c,d)) =
 --
 -- >>> view _qiA (qi 3 4 5 6)
 -- 3
+-- >>> view _qiA (qi 1 1 (-1) 1)
+-- 1
 --
 -- >>> over _qiA (+ 10) (qi 3 4 5 6)
 -- qi 13 4 5 6
+-- >>> over _qiA (+ 10) (qi 1 1 (-1) 1)
+-- qi 11 1 (-1) 1
 _qiA :: Lens' QI Integer
 _qiA = _qiABD . go
   where go f ~(a,b,d) = (\a' -> (a',b,d)) <$> f a
@@ -309,9 +337,13 @@ _qiA = _qiABD . go
 --
 -- >>> view _qiB (qi 3 4 5 6)
 -- 4
+-- >>> view _qiB (qi 1 1 (-1) 1)
+-- 1
 --
 -- >>> over _qiB (+ 10) (qi 3 4 5 6)
 -- qi 3 14 5 6
+-- >>> over _qiB (+ 10) (qi 1 1 (-1) 1)
+-- qi 1 11 (-1) 1
 _qiB :: Lens' QI Integer
 _qiB = _qiABD . go
   where go f ~(a,b,d) = (\b' -> (a,b',d)) <$> f b
@@ -321,9 +353,13 @@ _qiB = _qiABD . go
 --
 -- >>> view _qiC (qi 3 4 5 6)
 -- 5
+-- >>> view _qiC (qi 1 1 (-1) 1)
+-- -1
 --
 -- >>> over _qiC (+ 10) (qi 3 4 5 6)
 -- qi 3 4 15 6
+-- >>> over _qiC (+ 10) (qi 1 1 (-1) 1)
+-- qi 4 0 2 1
 _qiC :: Lens' QI Integer
 _qiC = _qi . go
   where go f ~(a,b,c,d) = (\c' -> (a,b,c',d)) <$> f c
@@ -333,25 +369,32 @@ _qiC = _qi . go
 --
 -- >>> view _qiD (qi 3 4 5 6)
 -- 6
+-- >>> view _qiD (qi 1 1 (-1) 1)
+-- 1
 --
 -- >>> over _qiD (+ 10) (qi 3 4 5 6)
 -- qi 3 4 5 16
+-- >>> over _qiD (+ 10) (qi 1 1 (-1) 1)
+-- qi 1 1 (-1) 11
 _qiD :: Lens' QI Integer
 _qiD = _qiABD . go
   where go f ~(a,b,d) = (\d' -> (a,b,d')) <$> f d
 
 -- | Check if the value is zero.
 --
--- >>> map qiIsZero [qi 0 0 0 1, qi 1 0 0 1, qiSubR (qi 7 0 0 2) 3.5]
--- [True,False,True]
+-- >>> map qiIsZero [qi 0 0 0 1, qi 1 0 0 1, qiSubR (qi 7 0 0 2) 3.5, qi 0 9 0 1, qi 0 0 (-1) 5]
+-- [True,False,True,True,True]
 qiIsZero :: QI -> Bool
 qiIsZero (QI q) = q == 0
 {-# INLINE qiIsZero #-}
 
 -- | Convert a 'QI' number into a 'Floating' one.
+-- Returns NaN for imaginary values.
 --
 -- >>> qiToFloat (qi 3 4 5 6) == ((3 + 4 * sqrt 5)/6 :: Double)
 -- True
+-- >>> qiToFloat (qi 2 3 (-5) 7)
+-- NaN
 qiToFloat :: Floating a => QI -> a
 qiToFloat (unQI -> ~(a,b,c,d)) =
   (fromInteger a + fromInteger b * sqrt (fromInteger c)) / fromInteger d
@@ -361,6 +404,8 @@ qiToFloat (unQI -> ~(a,b,c,d)) =
 --
 -- >>> qi 3 4 5 6 `qiAddI` 1
 -- qi 9 4 5 6
+-- >>> qi 1 1 (-1) 1 `qiAddI` 1
+-- qi 2 1 (-1) 1
 qiAddI :: QI -> Integer -> QI
 qiAddI (QI q) x = QI (q + fromInteger x)
 {-# INLINE qiAddI #-}
@@ -369,6 +414,8 @@ qiAddI (QI q) x = QI (q + fromInteger x)
 --
 -- >>> qi 3 4 5 6 `qiAddR` 1.2
 -- qi 51 20 5 30
+-- >>> qi 1 1 (-1) 1 `qiAddR` 1.2
+-- qi 11 5 (-1) 5
 qiAddR :: QI -> Rational -> QI
 qiAddR (QI q) x = QI (q + fromRational x)
 {-# INLINE qiAddR #-}
@@ -377,6 +424,8 @@ qiAddR (QI q) x = QI (q + fromRational x)
 --
 -- >>> qi 3 4 5 6 `qiSubI` 1
 -- qi (-3) 4 5 6
+-- >>> qi 1 1 (-1) 1 `qiSubI` 1
+-- qi 0 1 (-1) 1
 qiSubI :: QI -> Integer -> QI
 qiSubI (QI q) x = QI (q - fromInteger x)
 {-# INLINE qiSubI #-}
@@ -385,6 +434,8 @@ qiSubI (QI q) x = QI (q - fromInteger x)
 --
 -- >>> qi 3 4 5 6 `qiSubR` 1.2
 -- qi (-21) 20 5 30
+-- >>> qi 1 1 (-1) 1 `qiSubR` 1.2
+-- qi (-1) 5 (-1) 5
 qiSubR :: QI -> Rational -> QI
 qiSubR (QI q) x = QI (q - fromRational x)
 {-# INLINE qiSubR #-}
@@ -393,6 +444,8 @@ qiSubR (QI q) x = QI (q - fromRational x)
 --
 -- >>> qi 3 4 5 6 `qiMulI` 2
 -- qi 3 4 5 3
+-- >>> qi 1 1 (-1) 1 `qiMulI` 2
+-- qi 2 2 (-1) 1
 qiMulI :: QI -> Integer -> QI
 qiMulI (QI q) x = QI (q * fromInteger x)
 {-# INLINE qiMulI #-}
@@ -401,6 +454,8 @@ qiMulI (QI q) x = QI (q * fromInteger x)
 --
 -- >>> qi 3 4 5 6 `qiMulR` 0.5
 -- qi 3 4 5 12
+-- >>> qi 1 1 (-1) 1 `qiMulR` 0.5
+-- qi 1 1 (-1) 2
 qiMulR :: QI -> Rational -> QI
 qiMulR (QI q) x = QI (q * fromRational x)
 {-# INLINE qiMulR #-}
@@ -409,6 +464,8 @@ qiMulR (QI q) x = QI (q * fromRational x)
 --
 -- >>> qi 3 4 5 6 `qiDivI` 2
 -- qi 3 4 5 12
+-- >>> qi 1 1 (-1) 1 `qiDivI` 2
+-- qi 1 1 (-1) 2
 qiDivI :: QI -> Integer -> QI
 qiDivI (QI q) (nonZero "qiDivI" -> x) = QI (q * fromRational (1 % x))
 {-# INLINE qiDivI #-}
@@ -417,6 +474,8 @@ qiDivI (QI q) (nonZero "qiDivI" -> x) = QI (q * fromRational (1 % x))
 --
 -- >>> qi 3 4 5 6 `qiDivR` 0.5
 -- qi 3 4 5 3
+-- >>> qi 1 1 (-1) 1 `qiDivR` 0.5
+-- qi 2 2 (-1) 1
 qiDivR :: QI -> Rational -> QI
 qiDivR (QI q) (nonZero "qiDivR" -> x) = QI (q * fromRational (recip x))
 {-# INLINE qiDivR #-}
@@ -425,6 +484,8 @@ qiDivR (QI q) (nonZero "qiDivR" -> x) = QI (q * fromRational (recip x))
 --
 -- >>> qiNegate (qi 3 4 5 6)
 -- qi (-3) (-4) 5 6
+-- >>> qiNegate (qi 1 1 (-1) 1)
+-- qi (-1) (-1) (-1) 1
 qiNegate :: QI -> QI
 qiNegate (QI q) = QI (negate q)
 {-# INLINE qiNegate #-}
@@ -436,6 +497,9 @@ qiNegate (QI q) = QI (negate q)
 --
 -- >>> qiRecip (qi 0 1 5 2)
 -- Just (qi 0 2 5 5)
+--
+-- >>> qiRecip (qi 1 1 (-1) 1)
+-- Just (qi 1 (-1) (-1) 2)
 --
 -- >>> qiRecip (qi 0 0 0 1)
 -- Nothing
@@ -450,6 +514,9 @@ qiRecip (QI q) = Just (QI (recip q))
 --
 -- >>> qi 3 4 5 6 `qiAdd` qi 3 4 5 6
 -- Just (qi 3 4 5 3)
+--
+-- >>> qi 3 4 (-5) 6 `qiAdd` qi 3 4 (-5) 6
+-- Just (qi 3 4 (-5) 3)
 --
 -- >>> qi 0 1 5 1 `qiAdd` qi 0 1 6 1
 -- Nothing
@@ -466,6 +533,9 @@ qiAdd (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
 --
 -- >>> qi 3 4 5 6 `qiSub` qi 3 4 5 6
 -- Just (qi 0 0 5 1)
+--
+-- >>> qi 3 4 (-5) 6 `qiSub` qi 3 4 (-5) 6
+-- Just (qi 0 0 (-5) 1)
 --
 -- >>> qi 0 1 5 1 `qiSub` qi 0 1 6 1
 -- Nothing
@@ -485,6 +555,9 @@ qiSub (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
 --
 -- >>> qi 3 4 5 6 `qiMul` qi 3 4 5 6
 -- Just (qi 89 24 5 36)
+--
+-- >>> qi 3 4 (-5) 6 `qiMul` qi 3 4 (-5) 6
+-- Just (qi (-71) 24 (-5) 36)
 --
 -- >>> qi 0 1 5 1 `qiMul` qi 0 1 6 1
 -- Nothing
@@ -508,6 +581,9 @@ qiMul (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
 -- >>> qi 3 4 5 6 `qiDiv` qi 0 1 5 1
 -- Just (qi 20 3 5 30)
 --
+-- >>> qi 3 4 (-5) 6 `qiDiv` qi 0 1 (-5) 1
+-- Just (qi 20 (-3) (-5) 30)
+--
 -- >>> qi 0 1 5 1 `qiDiv` qi 0 1 6 1
 -- Nothing
 qiDiv :: QI -> QI -> Maybe QI
@@ -527,10 +603,14 @@ qiDiv (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
 --
 -- >>> qi 3 4 5 6 `qiPow` 2
 -- qi 89 24 5 36
+--
+-- >>> qi 1 1 (-1) 1 `qiPow` 4
+-- qi (-4) 0 (-1) 1
 qiPow :: QI -> Integer -> QI
 qiPow (QI q) pow = QI (getProduct (stimes pow (Product q)))
 
 -- | Compute the floor of a 'QI'.
+-- Throws an error for imaginary values.
 --
 -- >>> qiFloor (qi 10 0 0 2)
 -- 5
@@ -540,6 +620,10 @@ qiPow (QI q) pow = QI (getProduct (stimes pow (Product q)))
 --
 -- >>> qiFloor (qi 10 2 5 2)
 -- 7
+--
+-- >>> qiFloor (qi 1 1 (-1) 1)
+-- *** Exception: ...
+-- ...
 qiFloor :: QI -> Integer
 qiFloor (unQI -> ~(a,b,c,d)) =
   -- n = (a + b √c)/d
@@ -607,6 +691,7 @@ continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
     pos = positive "continuedFractionToQI"
 
 -- | Convert a 'QI' into a (possibly periodic) simple continued fraction.
+-- Throws an error for imaginary values.
 --
 -- @5\/2 = 2 + 1\/2 = [2; 2]@.
 --
@@ -620,6 +705,10 @@ continuedFractionToQI (i0_, is_) = qiAddI (go is_) i0_
 --
 -- >>> qiToContinuedFraction (qi 987601513930253257378987883 1 14116473325908285531353005 81983584717737887813195873886)
 -- (0,CycList [83,78,65,75,69] [32,66,65,68,71,69,82])
+--
+-- >>> qiToContinuedFraction (qi 1 1 (-1) 1)
+-- *** Exception: ...
+-- ...
 qiToContinuedFraction :: QI
                       -> (Integer, CycList Integer)
 qiToContinuedFraction num
