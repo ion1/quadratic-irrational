@@ -1,3 +1,10 @@
+# 0.1.0 (2019-XX-XX)
+
+* Allow imaginary square roots, e. g., `qi 1 1 (-5) 1`.
+* Remove `Ord QI` instance: complex values cannot be ordered.
+* Roots of 0 are reduced: `qi a b 0 d` becomes `qi a 0 2 d`.
+* Remove `qiZero` and `qiOne`.
+
 # 0.0.6 (2018-08-29)
 
 * Support GHC up to 8.6.1.
