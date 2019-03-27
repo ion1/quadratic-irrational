@@ -131,6 +131,9 @@ type QITuple = (Integer, Integer, Integer, Integer)
 -- >>> qi 3 0 42 1
 -- qi 3 0 42 1
 --
+-- >>> qi 1 1 (-1) 1
+-- qi 1 1 (-1) 1
+--
 -- The fractions are reduced:
 --
 -- >>> qi 30 40 5 60
@@ -181,8 +184,8 @@ simplifyReduceCons a b (nonZero "simplifyReduceCons" -> c) d
 -- @(b, c)@.
 separateSquareFactors :: Integer -> Integer -> (Integer, Integer)
 separateSquareFactors b (nonZero "separateSquareFactors" -> c) =
-  case foldl' go (1,1) (factorise c) of
-    ~(bMul, c') -> (b*bMul, c')
+  case foldl' go (1,1) (factorise (abs c)) of
+    ~(bMul, c') -> (b*bMul, c' * signum c)
   where
     go :: Integral a => (Integer, Integer) -> (Integer, a) -> (Integer, Integer)
     go ~(i, j) ~(fac, pow) =
