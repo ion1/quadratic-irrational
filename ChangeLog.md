@@ -1,4 +1,4 @@
-# 0.1.0 (2019-XX-XX)
+# 0.1.0 (2019-04-26)
 
 * Allow imaginary square roots, e. g., `qi 1 1 (-5) 1`.
 * Remove `Ord QI` instance: complex values cannot be ordered.
