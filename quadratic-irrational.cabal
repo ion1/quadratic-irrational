@@ -51,7 +51,7 @@ description:
   > 3.5      = [3; 2]
   > (1+√5)/2 = [1; 1, 1, 1, …]
   > √2       = [1; 2, 2, 2, …]
-tested-with: GHC==7.10.3, GHC==8.0.2, GHC==8.2.2, GHC==8.4.3, GHC==8.6.5, GHC==8.8.1
+tested-with: GHC==7.10.3, GHC==8.0.2, GHC==8.2.2, GHC==8.4.3, GHC==8.6.5, GHC==8.8.3, GHC==8.10.1
 
 build-type: Simple
 cabal-version: >= 1.10
