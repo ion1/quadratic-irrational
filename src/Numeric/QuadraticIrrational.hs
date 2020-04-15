@@ -81,8 +81,8 @@ import Data.Ratio ((%), denominator, numerator)
 import Data.Semigroup
 import qualified Data.Set as Set (empty, insert, member)
 import Data.Type.Equality
-import Math.NumberTheory.Powers.Squares (integerSquareRoot)
-import Math.NumberTheory.Primes.Factorisation (factorise)
+import Math.NumberTheory.Primes (Prime, unPrime, factorise)
+import Math.NumberTheory.Roots (integerSquareRoot)
 import Text.Read (Lexeme (Ident), Read (readListPrec, readPrec),
   lexP, parens, prec, readListPrecDefault, step)
 
@@ -189,12 +189,10 @@ separateSquareFactors b (nonZero "separateSquareFactors" -> c) =
   case foldl' go (1,1) (factorise (abs c)) of
     ~(bMul, c') -> (b*bMul, c' * signum c)
   where
-    go :: Integral a => (Integer, Integer) -> (Integer, a) -> (Integer, Integer)
-    go ~(i, j) ~(fac, pow) =
-      i `seq` j `seq` fac `seq` pow `seq`
-        if even pow
-          then (i*fac^(pow     `div` 2), j)
-          else (i*fac^((pow-1) `div` 2), j*fac)
+    go :: (Integer, Integer) -> (Prime Integer, Word) -> (Integer, Integer)
+    go ~(i, j) ~(p, pow) =
+      i `seq` j `seq` p `seq` pow `seq`
+        (i * unPrime p ^ (pow `div` 2), if even pow then j else j * unPrime p)
 
 -- Reduce the @a@, @b@, @d@ factors before constructing a 'QI'.
 reduceCons :: Integer -> Integer -> Integer -> Integer -> QI

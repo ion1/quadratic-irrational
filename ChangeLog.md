@@ -1,3 +1,7 @@
+# 0.1.1 (2020-04-15)
+
+* Support `arithmoi-0.11`.
+
 # 0.1.0 (2019-04-26)
 
 * Allow imaginary square roots, e. g., `qi 1 1 (-5) 1`.
