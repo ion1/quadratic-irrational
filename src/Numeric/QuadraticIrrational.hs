@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving  #-}
 {-# LANGUAGE ViewPatterns        #-}
@@ -505,6 +506,16 @@ qiRecip :: QI -> Maybe QI
 qiRecip (QI 0) = Nothing
 qiRecip (QI q) = Just (QI (recip q))
 
+qiBinOp :: (forall c. KnownSquareFree c => QuadExt c Rational -> QuadExt c Rational -> QuadExt c Rational) -> QI -> QI -> Maybe QI
+qiBinOp f (QI q1) (QI (QuadExt r2 0)) =
+  Just (QI (q1 `f` QuadExt r2 0))
+qiBinOp f (QI (QuadExt r1 0)) (QI q2) =
+  Just (QI (QuadExt r1 0 `f` q2))
+qiBinOp f (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
+  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
+    Nothing   -> Nothing
+    Just Refl -> Just (QI (q1 `f` q2))
+
 -- | Add two 'QI's if the square root terms are the same or zeros.
 --
 -- >>> qi 3 4 5 6 `qiAdd` qi 1 0 5 1
@@ -519,10 +530,7 @@ qiRecip (QI q) = Just (QI (recip q))
 -- >>> qi 0 1 5 1 `qiAdd` qi 0 1 6 1
 -- Nothing
 qiAdd :: QI -> QI -> Maybe QI
-qiAdd (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
-  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
-    Nothing   -> Nothing
-    Just Refl -> Just (QI (q1 + q2))
+qiAdd = qiBinOp (+)
 
 -- | Subtract two 'QI's if the square root terms are the same or zeros.
 --
@@ -538,10 +546,7 @@ qiAdd (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
 -- >>> qi 0 1 5 1 `qiSub` qi 0 1 6 1
 -- Nothing
 qiSub :: QI -> QI -> Maybe QI
-qiSub (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
-  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
-    Nothing   -> Nothing
-    Just Refl -> Just (QI (q1 - q2))
+qiSub = qiBinOp (-)
 
 -- | Multiply two 'QI's if the square root terms are the same or zeros.
 --
@@ -560,10 +565,7 @@ qiSub (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
 -- >>> qi 0 1 5 1 `qiMul` qi 0 1 6 1
 -- Nothing
 qiMul :: QI -> QI -> Maybe QI
-qiMul (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
-  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
-    Nothing   -> Nothing
-    Just Refl -> Just (QI (q1 * q2))
+qiMul = qiBinOp (*)
 
 -- | Divide two 'QI's if the square root terms are the same or zeros.
 --
@@ -586,10 +588,7 @@ qiMul (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
 -- Nothing
 qiDiv :: QI -> QI -> Maybe QI
 qiDiv _ (QI 0) = Nothing
-qiDiv (QI (q1 :: QuadExt c1 Rational)) (QI (q2 :: QuadExt c2 Rational)) =
-  case sameSquareFree (Proxy :: Proxy c1) (Proxy :: Proxy c2) of
-    Nothing   -> Nothing
-    Just Refl -> Just (QI (q1 / q2))
+qiDiv q1 q2 = qiBinOp (/) q1 q2
 
 -- | Exponentiate a 'QI' to an 'Integer' power.
 --
