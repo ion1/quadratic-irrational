@@ -1,3 +1,7 @@
+# 0.1.2 (2025-07-15)
+
+* Fix `qiAdd`, `qiSub`, `qiMul`, `qiDiv` when one of the arguments is rational, restoring behaviour of `quadratic-irrational-0.0.6`.
+
 # 0.1.1 (2020-04-15)
 
 * Support `arithmoi-0.11`.
